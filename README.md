@@ -32,6 +32,8 @@ Whether you're a student, researcher, or engineer — this is your **one-stop vi
 - [🤝 Contributing](#-contributing)
 
 ---
+# Preview: 
+<img width="3276" height="2808" alt="68747470733a2f2f73656261737469616e72617363686b612e636f6d2f6c6c6d2d6172636869746563747572652d67616c6c6572792f696d616765732f6865726f2f6172636869746563747572652d67616c6c6572792d6865726f2e77656270" src="https://github.com/user-attachments/assets/e3316e15-0751-45eb-8b0f-7c134d298baa" />
 
 ## 🗺️ Why LLM Architecture Matters
 
