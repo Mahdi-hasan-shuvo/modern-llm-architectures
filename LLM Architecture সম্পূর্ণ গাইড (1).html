@@ -1,0 +1,2277 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LLM Architecture — শুরু থেকে Production পর্যন্ত সম্পূর্ণ গাইড</title>
+
+<!-- Fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+
+<!-- Syntax highlighting -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/python.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/bash.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/yaml.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/json.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/dockerfile.min.js"></script>
+
+<style>
+:root{
+  --bg:#0a0e16;
+  --bg-2:#0e131d;
+  --panel:#121826;
+  --panel-2:#161d2c;
+  --border:#222c3d;
+  --border-soft:#1a2230;
+  --text:#c4cfde;
+  --text-dim:#8a99ad;
+  --text-mute:#5f6e82;
+  --white:#f3f7fc;
+  --accent:#4c9bff;
+  --accent-2:#7db4ff;
+  --accent-deep:#2b6fd6;
+  --accent-soft:rgba(76,155,255,.12);
+  --green:#46c08a;
+  --green-soft:rgba(70,192,138,.10);
+  --amber:#e0a23a;
+  --amber-soft:rgba(224,162,58,.10);
+  --red:#e26d6d;
+  --red-soft:rgba(226,109,109,.10);
+  --violet:#9b8cff;
+  --violet-soft:rgba(155,140,255,.10);
+  --mono:'JetBrains Mono',ui-monospace,Menlo,Consolas,monospace;
+  --bn:'Hind Siliguri',system-ui,sans-serif;
+  --display:'Space Grotesk','Hind Siliguri',sans-serif;
+  --maxw:860px;
+}
+
+*{box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{
+  margin:0;
+  background:var(--bg);
+  color:var(--text);
+  font-family:var(--bn);
+  font-size:17.5px;
+  line-height:1.85;
+  font-weight:400;
+  -webkit-font-smoothing:antialiased;
+  background-image:
+    radial-gradient(900px 600px at 88% -8%, rgba(76,155,255,.07), transparent 60%),
+    radial-gradient(700px 500px at -5% 18%, rgba(155,140,255,.05), transparent 55%);
+  background-attachment:fixed;
+}
+
+/* ---------- Reading progress ---------- */
+#progress{
+  position:fixed;top:0;left:0;height:3px;width:0%;
+  background:linear-gradient(90deg,var(--accent),var(--violet));
+  z-index:200;transition:width .1s linear;
+}
+
+/* ---------- Layout ---------- */
+.shell{display:grid;grid-template-columns:300px minmax(0,1fr);max-width:1280px;margin:0 auto;}
+
+/* ---------- Sidebar TOC ---------- */
+#sidebar{
+  position:sticky;top:0;align-self:start;height:100vh;overflow-y:auto;
+  border-right:1px solid var(--border-soft);
+  padding:26px 18px 60px 26px;
+  background:linear-gradient(180deg,var(--bg-2),var(--bg));
+}
+#sidebar::-webkit-scrollbar{width:8px;}
+#sidebar::-webkit-scrollbar-thumb{background:#1d2636;border-radius:8px;}
+.toc-brand{display:flex;gap:11px;align-items:center;margin-bottom:8px;}
+.toc-brand .mark{
+  width:34px;height:34px;border-radius:9px;flex:none;
+  background:linear-gradient(135deg,var(--accent),var(--accent-deep));
+  display:grid;place-items:center;color:#fff;font-family:var(--display);font-weight:700;font-size:15px;
+  box-shadow:0 4px 16px rgba(76,155,255,.35);
+}
+.toc-brand .t{font-family:var(--display);font-weight:600;color:var(--white);font-size:15px;line-height:1.25;}
+.toc-brand .t small{display:block;color:var(--text-mute);font-weight:400;font-size:11px;letter-spacing:.5px;text-transform:uppercase;font-family:var(--mono);}
+.toc-label{font-family:var(--mono);font-size:10.5px;letter-spacing:1.5px;text-transform:uppercase;color:var(--text-mute);margin:22px 0 10px;}
+#toc{list-style:none;margin:0;padding:0;}
+#toc li{margin:1px 0;}
+#toc a{
+  display:flex;gap:9px;align-items:center;
+  text-decoration:none;color:var(--text-dim);
+  font-size:13.5px;line-height:1.45;padding:5px 10px;border-radius:7px;
+  border-left:2px solid transparent;transition:all .15s;
+}
+#toc a .num{font-family:var(--mono);font-size:11px;color:var(--text-mute);flex:none;min-width:20px;}
+#toc a:hover{background:var(--panel);color:var(--accent-2);}
+#toc a.active{background:var(--accent-soft);color:var(--accent-2);border-left-color:var(--accent);font-weight:500;}
+#toc a.active .num{color:var(--accent);}
+
+/* ---------- Main ---------- */
+main{padding:0 56px;min-width:0;}
+.wrap{max-width:var(--maxw);margin:0 auto;}
+
+/* ---------- Cover ---------- */
+.cover{
+  min-height:100vh;display:flex;flex-direction:column;justify-content:center;
+  padding:70px 0;position:relative;
+}
+.cover-kicker{
+  display:inline-flex;align-items:center;gap:9px;align-self:flex-start;
+  font-family:var(--mono);font-size:12px;letter-spacing:1px;color:var(--accent-2);
+  background:var(--accent-soft);border:1px solid rgba(76,155,255,.25);
+  padding:7px 15px;border-radius:100px;margin-bottom:30px;
+}
+.cover-kicker .dot{width:7px;height:7px;border-radius:50%;background:var(--accent);box-shadow:0 0 10px var(--accent);}
+.cover h1{
+  font-family:var(--display);font-weight:700;color:var(--white);
+  font-size:clamp(38px,6vw,68px);line-height:1.05;letter-spacing:-1px;margin:0 0 6px;
+}
+.cover h1 .bn{font-family:var(--bn);font-weight:700;letter-spacing:0;}
+.cover .grad{background:linear-gradient(120deg,var(--accent-2),var(--violet));-webkit-background-clip:text;background-clip:text;color:transparent;}
+.cover .sub{font-size:23px;color:var(--text-dim);max-width:640px;margin:22px 0 0;line-height:1.6;}
+.cover-meta{display:flex;flex-wrap:wrap;gap:14px;margin-top:42px;}
+.cover-meta .chip{
+  display:flex;align-items:center;gap:8px;font-size:13.5px;color:var(--text-dim);
+  background:var(--panel);border:1px solid var(--border);padding:9px 15px;border-radius:10px;
+}
+.cover-meta .chip b{color:var(--white);font-weight:600;}
+.cover-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:46px;max-width:680px;}
+.cover-stats .s{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:20px 18px;}
+.cover-stats .s .n{font-family:var(--display);font-size:32px;font-weight:700;color:var(--accent-2);line-height:1;}
+.cover-stats .s .l{font-size:12.5px;color:var(--text-mute);margin-top:7px;}
+.cover-foot{margin-top:auto;padding-top:50px;display:flex;justify-content:space-between;align-items:flex-end;gap:20px;flex-wrap:wrap;border-top:1px solid var(--border-soft);}
+.cover-foot .who{font-size:13.5px;color:var(--text-dim);}
+.cover-foot .who b{color:var(--white);}
+.scroll-hint{font-family:var(--mono);font-size:11.5px;color:var(--text-mute);display:flex;align-items:center;gap:8px;}
+.scroll-hint .arr{animation:bob 1.8s ease-in-out infinite;}
+@keyframes bob{0%,100%{transform:translateY(0);}50%{transform:translateY(5px);}}
+
+/* ---------- Chapter ---------- */
+.chapter{padding:80px 0 40px;border-top:1px solid var(--border-soft);}
+.chapter:first-of-type{border-top:none;}
+.ch-head{margin-bottom:34px;}
+.ch-num{
+  font-family:var(--mono);font-size:13px;letter-spacing:2px;color:var(--accent);
+  display:flex;align-items:center;gap:12px;margin-bottom:14px;text-transform:uppercase;
+}
+.ch-num::before{content:"";width:34px;height:2px;background:var(--accent);display:inline-block;}
+.chapter h2{
+  font-family:var(--display);font-weight:700;color:var(--white);
+  font-size:clamp(28px,3.6vw,42px);line-height:1.12;letter-spacing:-.5px;margin:0;
+}
+.chapter h2 .bn{font-family:var(--bn);}
+.ch-lead{font-size:19px;color:var(--text-dim);margin:16px 0 0;line-height:1.7;}
+
+h3{
+  font-family:var(--display);font-weight:600;color:var(--white);
+  font-size:25px;line-height:1.25;margin:52px 0 4px;letter-spacing:-.2px;
+  scroll-margin-top:20px;
+}
+h3 .bn{font-family:var(--bn);}
+h3 + .h3-sub{color:var(--text-mute);font-size:14px;margin:0 0 18px;font-family:var(--mono);}
+h4{font-family:var(--bn);font-weight:600;color:var(--accent-2);font-size:19px;margin:32px 0 10px;}
+
+p{margin:14px 0;}
+a.inline{color:var(--accent-2);text-decoration:none;border-bottom:1px solid rgba(125,180,255,.3);}
+strong{color:var(--white);font-weight:600;}
+em{color:var(--accent-2);font-style:normal;font-weight:500;}
+code:not(pre code){
+  font-family:var(--mono);font-size:.85em;color:var(--accent-2);
+  background:var(--accent-soft);padding:2px 7px;border-radius:5px;border:1px solid rgba(76,155,255,.18);
+  word-break:break-word;
+}
+
+ul,ol{margin:14px 0;padding-left:4px;}
+li{margin:9px 0;padding-left:30px;position:relative;list-style:none;line-height:1.7;}
+ul li::before{content:"";position:absolute;left:6px;top:.72em;width:7px;height:7px;border-radius:2px;background:var(--accent);transform:rotate(45deg);}
+ol{counter-reset:ol;}
+ol li{counter-increment:ol;}
+ol li::before{content:counter(ol);position:absolute;left:0;top:.05em;font-family:var(--mono);font-size:12px;font-weight:700;color:var(--accent);width:22px;height:22px;background:var(--accent-soft);border:1px solid rgba(76,155,255,.25);border-radius:6px;display:grid;place-items:center;}
+li strong{color:var(--white);}
+
+/* ---------- Code blocks ---------- */
+.code{position:relative;margin:22px 0;border:1px solid var(--border);border-radius:12px;overflow:hidden;background:#0c1018;box-shadow:0 8px 30px rgba(0,0,0,.3);}
+.code-bar{display:flex;align-items:center;gap:10px;padding:9px 14px;background:var(--panel-2);border-bottom:1px solid var(--border);}
+.code-bar .dots{display:flex;gap:6px;}
+.code-bar .dots i{width:11px;height:11px;border-radius:50%;display:block;}
+.code-bar .dots i:nth-child(1){background:#e26d6d;}
+.code-bar .dots i:nth-child(2){background:#e0a23a;}
+.code-bar .dots i:nth-child(3){background:#46c08a;}
+.code-bar .fname{font-family:var(--mono);font-size:12px;color:var(--text-dim);margin-left:4px;}
+.code-bar .lang{margin-left:auto;font-family:var(--mono);font-size:10.5px;letter-spacing:1px;text-transform:uppercase;color:var(--text-mute);}
+.copy-btn{
+  font-family:var(--mono);font-size:11px;color:var(--text-dim);
+  background:var(--panel);border:1px solid var(--border);border-radius:6px;
+  padding:4px 11px;cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:6px;
+}
+.copy-btn:hover{color:var(--accent-2);border-color:var(--accent);background:var(--accent-soft);}
+.copy-btn.ok{color:var(--green);border-color:var(--green);}
+.code pre{margin:0;padding:18px 20px;overflow-x:auto;font-family:var(--mono);font-size:13.5px;line-height:1.7;}
+.code pre code{font-family:var(--mono);background:none;padding:0;border:none;color:#c4cfde;}
+.code pre::-webkit-scrollbar{height:9px;}
+.code pre::-webkit-scrollbar-thumb{background:#222c3d;border-radius:8px;}
+
+/* ---------- ASCII / diagram pre ---------- */
+.ascii{
+  margin:22px 0;background:#0c1018;border:1px solid var(--border);border-left:3px solid var(--violet);
+  border-radius:10px;padding:18px 20px;overflow-x:auto;
+}
+.ascii pre{margin:0;font-family:var(--mono);font-size:13px;line-height:1.5;color:var(--text-dim);white-space:pre;}
+.ascii .cap{font-family:var(--mono);font-size:10.5px;letter-spacing:1px;text-transform:uppercase;color:var(--violet);margin-bottom:12px;display:block;}
+
+/* ---------- Mermaid ---------- */
+.mermaid-card{margin:24px 0;background:var(--panel);border:1px solid var(--border);border-radius:14px;overflow:hidden;}
+.mermaid-card .mc-bar{display:flex;align-items:center;gap:10px;padding:11px 16px;border-bottom:1px solid var(--border);background:var(--panel-2);}
+.mermaid-card .mc-bar .ic{width:8px;height:8px;border-radius:2px;background:var(--accent);transform:rotate(45deg);}
+.mermaid-card .mc-bar .tt{font-family:var(--mono);font-size:11.5px;letter-spacing:.5px;text-transform:uppercase;color:var(--text-dim);}
+.mermaid-card .mermaid{padding:26px 20px;text-align:center;background:radial-gradient(circle at 50% 0,rgba(76,155,255,.04),transparent 70%);}
+.mermaid svg{max-width:100%;height:auto;}
+
+/* ---------- Callout boxes ---------- */
+.box{margin:24px 0;border-radius:14px;padding:20px 22px 20px 22px;border:1px solid var(--border);position:relative;overflow:hidden;}
+.box .bx-h{display:flex;align-items:center;gap:10px;font-family:var(--display);font-weight:600;font-size:15px;margin-bottom:8px;}
+.box .bx-h .ic{width:26px;height:26px;border-radius:7px;display:grid;place-items:center;font-size:14px;flex:none;}
+.box p{margin:8px 0;}
+.box ul,.box ol{margin:8px 0;}
+.box.summary{background:var(--accent-soft);border-color:rgba(76,155,255,.28);}
+.box.summary .bx-h{color:var(--accent-2);} .box.summary .ic{background:var(--accent);color:#fff;}
+.box.best{background:var(--green-soft);border-color:rgba(70,192,138,.3);}
+.box.best .bx-h{color:var(--green);} .box.best .ic{background:var(--green);color:#06251a;}
+.box.mistake{background:var(--red-soft);border-color:rgba(226,109,109,.3);}
+.box.mistake .bx-h{color:var(--red);} .box.mistake .ic{background:var(--red);color:#2a0d0d;}
+.box.note{background:var(--amber-soft);border-color:rgba(224,162,58,.3);}
+.box.note .bx-h{color:var(--amber);} .box.note .ic{background:var(--amber);color:#2a1e08;}
+.box.interview{background:var(--violet-soft);border-color:rgba(155,140,255,.3);}
+.box.interview .bx-h{color:var(--violet);} .box.interview .ic{background:var(--violet);color:#16113a;}
+.box.interview ol li{margin:11px 0;}
+.box.interview ol li::before{background:rgba(155,140,255,.18);border-color:rgba(155,140,255,.35);color:var(--violet);}
+
+/* ---------- Tables ---------- */
+.tbl-wrap{margin:24px 0;overflow-x:auto;border:1px solid var(--border);border-radius:12px;}
+table{border-collapse:collapse;width:100%;font-size:14.5px;min-width:520px;}
+thead th{
+  background:var(--panel-2);color:var(--white);font-weight:600;text-align:left;
+  padding:13px 16px;border-bottom:1px solid var(--border);font-family:var(--display);font-size:13.5px;
+  white-space:nowrap;
+}
+tbody td{padding:12px 16px;border-bottom:1px solid var(--border-soft);color:var(--text-dim);vertical-align:top;}
+tbody tr:last-child td{border-bottom:none;}
+tbody tr:nth-child(even){background:rgba(255,255,255,.012);}
+tbody td strong{color:var(--accent-2);}
+td code,th code{white-space:nowrap;}
+
+/* ---------- Key-value / concept grid ---------- */
+.kgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px;margin:24px 0;}
+.kcard{background:var(--panel);border:1px solid var(--border);border-radius:13px;padding:18px;}
+.kcard .ki{width:32px;height:32px;border-radius:9px;background:var(--accent-soft);border:1px solid rgba(76,155,255,.25);display:grid;place-items:center;margin-bottom:12px;font-family:var(--mono);color:var(--accent-2);font-size:14px;font-weight:700;}
+.kcard h5{margin:0 0 6px;font-family:var(--display);font-weight:600;color:var(--white);font-size:16px;}
+.kcard p{margin:0;font-size:14px;color:var(--text-dim);line-height:1.6;}
+
+/* ---------- Formula ---------- */
+.formula{margin:24px 0;background:linear-gradient(135deg,var(--panel),var(--panel-2));border:1px solid var(--border);border-radius:14px;padding:26px;text-align:center;}
+.formula .eq{font-family:var(--mono);font-size:22px;color:var(--white);line-height:1.6;letter-spacing:.5px;}
+.formula .eq b{color:var(--accent-2);}
+.formula .cap{font-family:var(--bn);font-size:14px;color:var(--text-mute);margin-top:14px;}
+
+/* ---------- Step flow (inline) ---------- */
+.steps{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:22px 0;}
+.steps .st{background:var(--panel);border:1px solid var(--border);border-radius:9px;padding:8px 14px;font-size:13.5px;color:var(--text-dim);font-family:var(--mono);}
+.steps .st b{color:var(--accent-2);}
+.steps .ar{color:var(--accent);font-size:18px;}
+
+/* ---------- Divider ---------- */
+.hr{height:1px;background:linear-gradient(90deg,transparent,var(--border),transparent);margin:40px 0;border:none;}
+
+/* ---------- Closing ---------- */
+.closing{padding:90px 0 120px;text-align:center;border-top:1px solid var(--border-soft);}
+.closing .mark{width:54px;height:54px;border-radius:14px;margin:0 auto 24px;background:linear-gradient(135deg,var(--accent),var(--accent-deep));display:grid;place-items:center;color:#fff;font-family:var(--display);font-weight:700;font-size:22px;box-shadow:0 8px 30px rgba(76,155,255,.4);}
+.closing h2{font-family:var(--display);font-size:34px;color:var(--white);margin:0 0 12px;}
+.closing p{color:var(--text-dim);max-width:520px;margin:0 auto;font-size:17px;}
+
+/* ---------- Responsive ---------- */
+@media (max-width:980px){
+  .shell{grid-template-columns:1fr;}
+  #sidebar{display:none;}
+  main{padding:0 22px;}
+  .cover-stats{grid-template-columns:repeat(2,1fr);}
+}
+@media (max-width:560px){
+  body{font-size:16.5px;}
+  .cover-stats{grid-template-columns:1fr 1fr;}
+  .cover-meta{gap:9px;}
+}
+
+/* ---------- Print / PDF ---------- */
+@media print{
+  *{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  #sidebar,#progress,.copy-btn,.scroll-hint{display:none!important;}
+  .shell{grid-template-columns:1fr;}
+  main{padding:0;}
+  .chapter{page-break-before:always;padding-top:30px;}
+  .cover{min-height:auto;page-break-after:always;}
+  .code,.mermaid-card,.box,.tbl-wrap,.formula,.ascii{page-break-inside:avoid;}
+}
+</style>
+</head>
+<body>
+<div id="progress"></div>
+
+<div class="shell">
+  <!-- ============ SIDEBAR ============ -->
+  <aside id="sidebar">
+    <div class="toc-brand">
+      <div class="mark">LLM</div>
+      <div class="t">LLM Architecture<small>Zero → Production</small></div>
+    </div>
+    <div class="toc-label">সূচিপত্র · Table of Contents</div>
+    <ul id="toc">
+      <li><a href="#cover"><span class="num">00</span><span>ভূমিকা</span></a></li>
+      <li><a href="#ch1"><span class="num">01</span><span>LLM কী?</span></a></li>
+      <li><a href="#ch2"><span class="num">02</span><span>Transformer</span></a></li>
+      <li><a href="#ch3"><span class="num">03</span><span>Training Pipeline</span></a></li>
+      <li><a href="#ch4"><span class="num">04</span><span>Tokenization</span></a></li>
+      <li><a href="#ch5"><span class="num">05</span><span>Embeddings</span></a></li>
+      <li><a href="#ch6"><span class="num">06</span><span>Mini LLM তৈরি</span></a></li>
+      <li><a href="#ch7"><span class="num">07</span><span>RAG</span></a></li>
+      <li><a href="#ch8"><span class="num">08</span><span>Fine-Tuning</span></a></li>
+      <li><a href="#ch9"><span class="num">09</span><span>LLM Serving</span></a></li>
+      <li><a href="#ch10"><span class="num">10</span><span>Production Arch.</span></a></li>
+      <li><a href="#ch11"><span class="num">11</span><span>Dev Roadmap</span></a></li>
+      <li><a href="#ch12"><span class="num">12</span><span>Hardware ও Cost</span></a></li>
+      <li><a href="#ch13"><span class="num">13</span><span>Open Source</span></a></li>
+      <li><a href="#ch14"><span class="num">14</span><span>Real World Project</span></a></li>
+      <li><a href="#ch15"><span class="num">15</span><span>End-to-End Flow</span></a></li>
+    </ul>
+  </aside>
+
+  <!-- ============ MAIN ============ -->
+  <main>
+    <!-- ===== COVER ===== -->
+    <section class="cover" id="cover">
+      <div class="wrap">
+        <div class="cover-kicker"><span class="dot"></span>সম্পূর্ণ বাংলা টেকনিক্যাল গাইড · ২০২৬ এডিশন</div>
+        <h1><span class="grad">Large Language Model</span><br><span class="bn">আর্কিটেকচার</span></h1>
+        <p class="sub">শুরু থেকে Production Deployment পর্যন্ত — Transformer-এর ভেতরের গণিত থেকে নিজের ChatGPT-সদৃশ সিস্টেম ডিজাইন করা পর্যন্ত, একটি সম্পূর্ণ Beginner → Expert হাতে-কলমে গাইড।</p>
+
+        <div class="cover-stats">
+          <div class="s"><div class="n">১৫</div><div class="l">অধ্যায়</div></div>
+          <div class="s"><div class="n">৫০+</div><div class="l">Code Example</div></div>
+          <div class="s"><div class="n">৩০+</div><div class="l">Diagram</div></div>
+          <div class="s"><div class="n">100%</div><div class="l">বাংলায়</div></div>
+        </div>
+
+        <div class="cover-meta">
+          <div class="chip">🐍 <b>Python</b> · PyTorch</div>
+          <div class="chip">📊 <b>Mermaid</b> + ASCII Diagram</div>
+          <div class="chip">🧱 <b>RAG</b> · Fine-tuning · Serving</div>
+          <div class="chip">🏗️ Production <b>System Design</b></div>
+        </div>
+
+        <div class="cover-foot">
+          <div class="who">লক্ষ্য পাঠক — <b>ডেভেলপার, ML ইঞ্জিনিয়ার ও শিক্ষার্থী</b><br>যারা LLM-এর ভেতরটা সত্যিকারভাবে বুঝতে চান।</div>
+          <div class="scroll-hint"><span class="arr">↓</span> স্ক্রল করে শুরু করুন · বাঁয়ে সূচিপত্র</div>
+        </div>
+      </div>
+    </section>
+
+    <div class="wrap" id="content">
+<!-- ========================================================= -->
+<!-- ==================== CHAPTER 1 =========================== -->
+<!-- ========================================================= -->
+<section class="chapter" id="ch1" data-screen-label="অধ্যায় ০১">
+  <div class="ch-head">
+    <div class="ch-num">অধ্যায় ০১ · Foundation</div>
+    <h2><span class="bn">LLM কী? — পুরো ছবিটা বুঝে নেওয়া</span></h2>
+    <p class="ch-lead">কোড লেখার আগে ভিত্তিটা পরিষ্কার হওয়া দরকার। এই অধ্যায়ে আমরা জানব LLM আসলে কী, AI থেকে শুরু করে কীভাবে আজকের ChatGPT/Claude/Gemini-তে এসে পৌঁছালাম, এবং Token, Context Window, Embedding-এর মতো মৌলিক শব্দগুলোর মানে।</p>
+  </div>
+
+  <h3><span class="bn">LLM আসলে কী?</span></h3>
+  <p><strong>Large Language Model (LLM)</strong> হলো একটি বিশাল neural network যাকে ইন্টারনেট-স্কেল টেক্সট ডেটা দিয়ে এমনভাবে প্রশিক্ষণ দেওয়া হয়েছে যাতে এটি <em>"পরবর্তী শব্দটি (token) কী হবে"</em> তা ভবিষ্যদ্বাণী করতে পারে। শুনতে সহজ মনে হলেও — কোটি কোটি বাক্যে এই একটি কাজ বারবার করতে করতে মডেলটি ভাষা, যুক্তি, কোড, এমনকি কিছু "common sense"-ও শিখে ফেলে।</p>
+
+  <p>একদম সহজ ভাষায়: LLM হলো একটি অসম্ভব শক্তিশালী <strong>autocomplete</strong> ইঞ্জিন। আপনার মোবাইল কীবোর্ডের next-word suggestion যেমন কাজ করে, LLM তার এক বিলিয়ন গুণ পরিশীলিত রূপ। পার্থক্য হলো — কীবোর্ড দেখে শেষ ২-৩টি শব্দ, আর LLM দেখে হাজার হাজার শব্দের প্রেক্ষাপট এবং প্রতিটি সিদ্ধান্তে ব্যবহার করে বিলিয়ন প্যারামিটার।</p>
+
+  <div class="box note">
+    <div class="bx-h"><span class="ic">💡</span>মূল অন্তর্দৃষ্টি</div>
+    <p>LLM "চিন্তা" করে না, "জানে" না — এটি <strong>probability distribution</strong> হিসাব করে: "এই প্রেক্ষাপটের পর কোন token-এর আসার সম্ভাবনা কত?"। বুদ্ধিমত্তার মতো যা দেখায়, তা আসলে বিশাল স্কেলে next-token prediction-এর emergent ফলাফল।</p>
+  </div>
+
+  <h3><span class="bn">AI → ML → Deep Learning → Transformer → LLM</span></h3>
+  <p class="h3-sub">the evolution ladder</p>
+  <p>LLM হঠাৎ আকাশ থেকে পড়েনি — এটি কয়েক দশকের গবেষণার ক্রমবিবর্তন। প্রতিটি স্তর তার আগেরটির উপর দাঁড়িয়ে আছে:</p>
+
+  <div class="mermaid-card">
+    <div class="mc-bar"><span class="ic"></span><span class="tt">Evolution of LLM</span></div>
+    <div class="mermaid">
+flowchart LR
+    AI["🧠 Artificial<br/>Intelligence<br/><small>নিয়মভিত্তিক বুদ্ধিমত্তা</small>"]
+    ML["📈 Machine<br/>Learning<br/><small>ডেটা থেকে শেখা</small>"]
+    DL["🔗 Deep<br/>Learning<br/><small>Neural Network</small>"]
+    TF["⚡ Transformer<br/><small>Attention, 2017</small>"]
+    LLM["🤖 LLM<br/><small>GPT/Claude/Gemini</small>"]
+    AI --> ML --> DL --> TF --> LLM
+    </div>
+  </div>
+
+  <div class="kgrid">
+    <div class="kcard"><div class="ki">AI</div><h5>Artificial Intelligence</h5><p>মেশিনকে বুদ্ধিমান আচরণ করানোর সবচেয়ে বড় ছাতা — শুরুতে ছিল হাতে-লেখা if-else নিয়ম।</p></div>
+    <div class="kcard"><div class="ki">ML</div><h5>Machine Learning</h5><p>নিয়ম না লিখে, ডেটা দেখিয়ে মডেলকে নিজে প্যাটার্ন শিখতে দেওয়া।</p></div>
+    <div class="kcard"><div class="ki">DL</div><h5>Deep Learning</h5><p>বহু-স্তরের neural network — ছবি, শব্দ, ভাষার মতো জটিল ডেটায় বিপ্লব আনে।</p></div>
+    <div class="kcard"><div class="ki">TF</div><h5>Transformer</h5><p>২০১৭-র "Attention Is All You Need" পেপার — আধুনিক সব LLM-এর ভিত্তি।</p></div>
+  </div>
+
+  <p>২০১৭ সালের আগে ভাষা মডেলে ব্যবহৃত হতো <strong>RNN</strong> ও <strong>LSTM</strong>, যা শব্দ একটার পর একটা ক্রমে পড়ত — ফলে ধীর এবং দীর্ঘ প্রেক্ষাপট মনে রাখতে অক্ষম। Transformer এই সমস্যা ভাঙল <em>self-attention</em> দিয়ে: একসাথে পুরো বাক্যের সব শব্দ পরস্পরের দিকে "তাকাতে" পারে, এবং পুরোটা সমান্তরালে (parallel) প্রসেস হয় — তাই GPU-তে দ্রুত ট্রেনিং সম্ভব হলো।</p>
+
+  <h3><span class="bn">GPT, Claude, Gemini, Llama — কীভাবে কাজ করে</span></h3>
+  <p>এই চারটি মডেলই মূলত একই Transformer ভিত্তির উপর দাঁড়িয়ে, কিন্তু ভিন্ন ভিন্ন প্রতিষ্ঠান, ডেটা ও কৌশলে প্রশিক্ষিত। সবগুলোই <strong>decoder-only autoregressive</strong> মডেল — অর্থাৎ একটার পর একটা token তৈরি করে এগোয়।</p>
+
+  <div class="tbl-wrap">
+  <table>
+    <thead><tr><th>মডেল</th><th>প্রতিষ্ঠান</th><th>ধরন</th><th>বিশেষত্ব</th></tr></thead>
+    <tbody>
+      <tr><td><strong>GPT</strong></td><td>OpenAI</td><td>Closed, decoder-only</td><td>বহুমুখী, বিশাল ইকোসিস্টেম ও API</td></tr>
+      <tr><td><strong>Claude</strong></td><td>Anthropic</td><td>Closed, decoder-only</td><td>দীর্ঘ context, নিরাপত্তা ও যুক্তিতে শক্তিশালী</td></tr>
+      <tr><td><strong>Gemini</strong></td><td>Google DeepMind</td><td>Closed, multimodal</td><td>টেক্সট+ছবি+ভিডিও একসাথে (native multimodal)</td></tr>
+      <tr><td><strong>Llama</strong></td><td>Meta</td><td>Open weights</td><td>ফ্রিতে ডাউনলোড করে নিজে চালানো/fine-tune করা যায়</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <p>সবগুলোর কাজের মূল লুপ একই — যাকে বলা হয় <strong>autoregressive generation</strong>:</p>
+  <div class="ascii">
+    <span class="cap">Autoregressive Loop</span>
+<pre>  prompt: "বাংলাদেশের রাজধানী"
+        │
+        ▼
+   ┌──────────┐   next token: "ঢাকা"     ┌──────────┐
+   │   LLM    │ ───────────────────────► │  output  │
+   └──────────┘                          └────┬─────┘
+        ▲                                     │
+        │   "বাংলাদেশের রাজধানী ঢাকা" ◄────────┘
+        └──────────── (আবার feed back) ────────
+   প্রতিটি নতুন token আগের পুরো sequence-এর সাথে যুক্ত হয়ে
+   পরের token তৈরির ইনপুট হয় — যতক্ষণ না [END] আসে।</pre>
+  </div>
+
+  <h3><span class="bn">Token কী?</span></h3>
+  <p>LLM সরাসরি অক্ষর বা শব্দ পড়ে না — এটি পড়ে <strong>token</strong>, যা শব্দের ছোট ছোট টুকরা। ইংরেজিতে গড়ে ১ token ≈ ০.৭৫ শব্দ বা ~৪ অক্ষর। যেমন <code>"unbelievable"</code> ভেঙে যেতে পারে <code>["un", "believ", "able"]</code>-এ।</p>
+  <div class="ascii">
+    <span class="cap">Text → Tokens</span>
+<pre>  "I love machine learning"
+        │  (tokenizer)
+        ▼
+  ["I", " love", " machine", " learning"]
+        │  (vocabulary lookup)
+        ▼
+  [40,  1842,    5662,        4673]   ← token IDs (সংখ্যা)</pre>
+  </div>
+  <p>মডেলের কাছে token মানেই হলো এই <em>সংখ্যাগুলো (IDs)</em>। কেন টোকেন গুরুত্বপূর্ণ? কারণ — API-র দাম token-এ হিসাব হয়, context window-এর সীমা token-এ মাপা হয়, এবং মডেলের গতিও token/সেকেন্ডে।</p>
+
+  <h3><span class="bn">Context Window কী?</span></h3>
+  <p><strong>Context window</strong> হলো একসাথে কত token মডেল "মনে রাখতে" বা একবারে দেখতে পারে তার সর্বোচ্চ সীমা — এতে আপনার prompt, ইতিহাস, এবং মডেলের উত্তর সবই থাকে। GPT-2-তে ছিল মাত্র ১,০২৪ token; ২০২৬-এর আধুনিক মডেলে তা ১২৮K থেকে ১M+ পর্যন্ত।</p>
+  <div class="box note">
+    <div class="bx-h"><span class="ic">📏</span>উপমা</div>
+    <p>Context window-কে ভাবুন মডেলের <strong>working memory</strong> হিসেবে — একটা ডেস্কের উপর যত কাগজ একসাথে রাখা যায়। ডেস্ক ভরে গেলে পুরোনো কাগজ সরাতে হয় (truncation), আর মডেল তখন শুরুর তথ্য "ভুলে" যায়।</p>
+  </div>
+
+  <h3><span class="bn">Embedding কী?</span></h3>
+  <p>Token ID শুধু একটা সংখ্যা — এর কোনো "অর্থ" নেই। <strong>Embedding</strong> হলো প্রতিটি token-কে একটি বহু-মাত্রিক vector-এ (যেমন ৭৬৮ বা ৪০৯৬ সংখ্যার তালিকা) রূপান্তর, যেখানে <em>অর্থে কাছাকাছি শব্দ vector-স্পেসে কাছাকাছি অবস্থান করে</em>।</p>
+  <div class="formula">
+    <div class="eq">"রাজা" − "পুরুষ" + "নারী" ≈ <b>"রানী"</b></div>
+    <div class="cap">Embedding স্পেসে অর্থের সম্পর্ক জ্যামিতিক দূরত্ব হিসেবে ধরা পড়ে</div>
+  </div>
+  <p>অর্থাৎ embedding হলো ভাষাকে <strong>সংখ্যার জগতে অনুবাদ</strong> করা, যাতে neural network গণিত করতে পারে। অধ্যায় ৫-এ আমরা embedding নিয়ে গভীরে যাব।</p>
+
+  <h3><span class="bn">পুরো ফ্লো — একনজরে</span></h3>
+  <div class="mermaid-card">
+    <div class="mc-bar"><span class="ic"></span><span class="tt">User → Response (high level)</span></div>
+    <div class="mermaid">
+flowchart TD
+    U["👤 User"] --> P["📝 Prompt"]
+    P --> T["✂️ Tokenizer<br/><small>text → tokens</small>"]
+    T --> E["🔢 Embedding<br/><small>tokens → vectors</small>"]
+    E --> TR["⚡ Transformer<br/><small>N layers, attention</small>"]
+    TR --> O["🎯 Output Tokens<br/><small>probabilities → token</small>"]
+    O --> R["💬 Response"]
+    R -.autoregressive loop.-> TR
+    </div>
+  </div>
+
+  <div class="box summary">
+    <div class="bx-h"><span class="ic">📌</span>অধ্যায় ১ — সারসংক্ষেপ</div>
+    <ul>
+      <li><strong>LLM</strong> = বিশাল neural network যা next-token prediction শেখে; বুদ্ধিমত্তা এর emergent ফল।</li>
+      <li>বিবর্তন: <strong>AI → ML → Deep Learning → Transformer (2017) → LLM</strong>।</li>
+      <li><strong>Token</strong> = শব্দের টুকরা (সংখ্যা/ID); দাম, সীমা ও গতি সবই token-এ মাপা হয়।</li>
+      <li><strong>Context window</strong> = মডেলের working memory — একসাথে কত token দেখতে পারে।</li>
+      <li><strong>Embedding</strong> = token-কে অর্থপূর্ণ vector-এ অনুবাদ; কাছাকাছি অর্থ = কাছাকাছি দূরত্ব।</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ========================================================= -->
+<!-- ==================== CHAPTER 2 =========================== -->
+<!-- ========================================================= -->
+<section class="chapter" id="ch2" data-screen-label="অধ্যায় ০২">
+  <div class="ch-head">
+    <div class="ch-num">অধ্যায় ০২ · Architecture</div>
+    <h2><span class="bn">Transformer Architecture — গভীরে</span></h2>
+    <p class="ch-lead">এটিই পুরো গাইডের হৃদয়। Encoder, Decoder, Self-Attention, Multi-Head Attention, Positional Encoding, Feed-Forward, Residual Connection ও Layer Normalization — প্রতিটি অংশ কেন আছে এবং কীভাবে একসাথে কাজ করে, ছবি ও গণিতসহ বুঝব।</p>
+  </div>
+
+  <h3><span class="bn">পুরো Transformer ব্লক — মানচিত্র</span></h3>
+  <div class="mermaid-card">
+    <div class="mc-bar"><span class="ic"></span><span class="tt">Transformer — Encoder &amp; Decoder</span></div>
+    <div class="mermaid">
+flowchart TB
+    subgraph ENC["🔵 ENCODER (× N)"]
+      direction TB
+      IE["Input Embedding + Positional"] --> EA["Multi-Head<br/>Self-Attention"]
+      EA --> EN1["Add &amp; Norm"]
+      EN1 --> EF["Feed Forward"]
+      EF --> EN2["Add &amp; Norm"]
+    end
+    subgraph DEC["🟣 DECODER (× N)"]
+      direction TB
+      OE["Output Embedding + Positional"] --> MA["Masked Multi-Head<br/>Self-Attention"]
+      MA --> DN1["Add &amp; Norm"]
+      DN1 --> CA["Cross-Attention<br/>(Encoder → Decoder)"]
+      CA --> DN2["Add &amp; Norm"]
+      DN2 --> DF["Feed Forward"]
+      DF --> DN3["Add &amp; Norm"]
+    end
+    EN2 --> CA
+    DN3 --> LIN["Linear + Softmax"] --> OUT["Output Probabilities"]
+    </div>
+  </div>
+
+  <h3><span class="bn">Encoder vs Decoder</span></h3>
+  <div class="kgrid">
+    <div class="kcard"><div class="ki">E</div><h5>Encoder</h5><p>পুরো ইনপুট একবারে পড়ে এর একটি অর্থপূর্ণ উপস্থাপন (representation) তৈরি করে। প্রতিটি token সব token দেখতে পায় (bidirectional)। উদাহরণ: BERT।</p></div>
+    <div class="kcard"><div class="ki">D</div><h5>Decoder</h5><p>একটার পর একটা token তৈরি করে; ভবিষ্যৎ token দেখতে পায় না (masked)। আধুনিক GPT/Claude/Llama সব <strong>decoder-only</strong>।</p></div>
+  </div>
+  <div class="box note">
+    <div class="bx-h"><span class="ic">🎯</span>২০২৬-এ বাস্তবতা</div>
+    <p>মূল ২০১৭ পেপারে দুটোই (অনুবাদের জন্য) ছিল। কিন্তু আজকের জনপ্রিয় চ্যাট-LLM প্রায় সবই <strong>decoder-only</strong> — সরল, scalable, এবং generation-এ চমৎকার। তাই বাকি গাইডে আমরা decoder-only-তেই ফোকাস করব।</p>
+  </div>
+
+  <h3><span class="bn">Self-Attention — মূল জাদু</span></h3>
+  <p class="h3-sub">"each word looks at every other word"</p>
+  <p>একটি বাক্যে প্রতিটি শব্দের অর্থ অন্য শব্দের উপর নির্ভর করে। "ব্যাংকের পাশে নদীর তীরে বসলাম" — এখানে "ব্যাংক" মানে আর্থিক প্রতিষ্ঠান নয়, নদীর তীর; কারণ "নদী" শব্দটি প্রসঙ্গ বদলে দিয়েছে। Self-attention প্রতিটি token-কে অন্য সব token-এর দিকে "তাকিয়ে" সিদ্ধান্ত নিতে দেয় — <em>কাকে কতটা গুরুত্ব দেব</em>।</p>
+  <p>প্রতিটি token থেকে তিনটি vector তৈরি হয়:</p>
+  <div class="kgrid">
+    <div class="kcard"><div class="ki">Q</div><h5>Query</h5><p>"আমি কী খুঁজছি?" — বর্তমান token-এর প্রশ্ন।</p></div>
+    <div class="kcard"><div class="ki">K</div><h5>Key</h5><p>"আমার কাছে কী আছে?" — প্রতিটি token-এর পরিচয়/লেবেল।</p></div>
+    <div class="kcard"><div class="ki">V</div><h5>Value</h5><p>"আমি কী তথ্য বহন করি?" — আসল বিষয়বস্তু।</p></div>
+  </div>
+
+  <h3><span class="bn">Attention Formula</span></h3>
+  <div class="formula">
+    <div class="eq">Attention(<b>Q</b>,<b>K</b>,<b>V</b>) = softmax( <b>Q</b><b>K</b><sup>T</sup> / √d<sub>k</sub> ) <b>V</b></div>
+    <div class="cap">Query ও Key-এর মিল মাপো → স্কেল করো → softmax দিয়ে ওজন → Value-র ওজনিত যোগফল</div>
+  </div>
+  <p>ধাপে ধাপে এই সূত্রটি পড়ি:</p>
+  <ol>
+    <li><strong>QKᵀ</strong> — প্রতিটি Query কত মেলে প্রতিটি Key-এর সাথে (similarity score / dot product)।</li>
+    <li><strong>÷ √dₖ</strong> — মাত্রা (dimension) বড় হলে score-ও বড় হয়ে যায়; √dₖ দিয়ে ভাগ করে স্থিতিশীল রাখা হয় (নাহলে softmax খুব ধারালো হয়ে gradient মরে যায়)।</li>
+    <li><strong>softmax</strong> — score-গুলোকে ০–১ এর সম্ভাবনায় রূপান্তর (যোগফল ১), অর্থাৎ "attention weights"।</li>
+    <li><strong>× V</strong> — এই weights দিয়ে Value-গুলোর ওজনিত গড় = প্রতিটি token-এর নতুন, প্রসঙ্গ-সমৃদ্ধ উপস্থাপন।</li>
+  </ol>
+
+  <div class="ascii">
+    <span class="cap">Attention weights — "it" কোন শব্দ বোঝাচ্ছে?</span>
+<pre>  বাক্য:  The  animal  didn't  cross  the  street  because  it  was  tired
+                ▲                                              │
+                └────────────── high attention ───────────────┘
+   "it" → "animal" (0.71), "street" (0.06), "tired" (0.11) ...
+   মডেল নিজে শিখে নেয় যে "it" এখানে "animal"-কে refer করছে।</pre>
+  </div>
+
+  <h4>Self-Attention — PyTorch-এ একদম স্ক্র্যাচ থেকে</h4>
+  <div class="code">
+    <div class="code-bar"><div class="dots"><i></i><i></i><i></i></div><span class="fname">self_attention.py</span><span class="lang">python</span><button class="copy-btn" data-label="Copy"><span class="t">Copy</span></button></div>
+<pre><code class="language-python">import torch
+import torch.nn.functional as F
+
+def self_attention(x, W_q, W_k, W_v):
+    """
+    x: (seq_len, d_model) — ইনপুট embeddings
+    W_q, W_k, W_v: (d_model, d_k) — শেখা projection matrices
+    """
+    Q = x @ W_q          # (seq_len, d_k)  -> "আমি কী খুঁজছি"
+    K = x @ W_k          # (seq_len, d_k)  -> "আমার পরিচয়"
+    V = x @ W_v          # (seq_len, d_k)  -> "আমার তথ্য"
+
+    d_k = Q.size(-1)
+    # ধাপ ১: similarity scores  (QKᵀ)
+    scores = Q @ K.transpose(-2, -1)          # (seq_len, seq_len)
+    # ধাপ ২: scale  (÷ √d_k)
+    scores = scores / (d_k ** 0.5)
+    # ধাপ ৩: softmax -> attention weights
+    weights = F.softmax(scores, dim=-1)       # প্রতিটি সারির যোগফল = 1
+    # ধাপ ৪: weighted sum of values
+    output = weights @ V                       # (seq_len, d_k)
+    return output, weights
+
+# উদাহরণ
+torch.manual_seed(0)
+seq_len, d_model, d_k = 4, 8, 8
+x = torch.randn(seq_len, d_model)
+W_q, W_k, W_v = (torch.randn(d_model, d_k) for _ in range(3))
+out, attn = self_attention(x, W_q, W_k, W_v)
+print("output shape:", out.shape)      # (4, 8)
+print("attention weights:\n", attn.round(decimals=2))
+</code></pre>
+  </div>
+
+  <h3><span class="bn">Multi-Head Attention</span></h3>
+  <p>একটি attention "মাথা" (head) একধরনের সম্পর্ক ধরে। কিন্তু ভাষায় একসাথে অনেক ধরনের সম্পর্ক থাকে — কোনটা ব্যাকরণগত, কোনটা অর্থগত, কোনটা দূরত্বের। তাই আমরা <strong>একাধিক head</strong> সমান্তরালে চালাই; প্রতিটি ভিন্ন "দৃষ্টিকোণ" শেখে, তারপর সবগুলো একত্র (concatenate) করে আবার project করা হয়।</p>
+  <div class="ascii">
+    <span class="cap">Multi-Head Attention</span>
+<pre>          Input
+            │
+   ┌────────┼────────┬────────┐
+   ▼        ▼        ▼        ▼
+ Head 1   Head 2   Head 3 ... Head h     ← প্রতিটি আলাদা Q,K,V
+ (syntax) (corref) (distance)            ← ভিন্ন সম্পর্ক শেখে
+   │        │        │        │
+   └────────┴───┬────┴────────┘
+            Concat
+              │
+          Linear (W_o)
+              │
+            Output</pre>
+  </div>
+  <div class="code">
+    <div class="code-bar"><div class="dots"><i></i><i></i><i></i></div><span class="fname">multi_head_attention.py</span><span class="lang">python</span><button class="copy-btn" data-label="Copy"><span class="t">Copy</span></button></div>
+<pre><code class="language-python">import torch
+import torch.nn as nn
+
+class MultiHeadAttention(nn.Module):
+    def __init__(self, d_model, n_heads):
+        super().__init__()
+        assert d_model % n_heads == 0
+        self.d_k = d_model // n_heads
+        self.n_heads = n_heads
+        self.qkv = nn.Linear(d_model, d_model * 3)   # Q,K,V একসাথে
+        self.out = nn.Linear(d_model, d_model)
+
+    def forward(self, x, mask=None):
+        B, T, C = x.shape                       # batch, seq_len, d_model
+        qkv = self.qkv(x).chunk(3, dim=-1)      # 3 × (B, T, C)
+        q, k, v = [t.view(B, T, self.n_heads, self.d_k).transpose(1, 2)
+                   for t in qkv]                # (B, heads, T, d_k)
+
+        att = (q @ k.transpose(-2, -1)) / (self.d_k ** 0.5)
+        if mask is not None:                    # causal mask (decoder)
+            att = att.masked_fill(mask == 0, float('-inf'))
+        att = att.softmax(dim=-1)
+        y = att @ v                             # (B, heads, T, d_k)
+        y = y.transpose(1, 2).contiguous().view(B, T, C)  # concat heads
+        return self.out(y)
+</code></pre>
+  </div>
+
+  <h3><span class="bn">Positional Encoding</span></h3>
+  <p>Attention নিজে থেকে শব্দের <em>ক্রম</em> জানে না — তার কাছে "বিড়াল ইঁদুর খেল" আর "ইঁদুর বিড়াল খেল" একই দেখায়! তাই প্রতিটি অবস্থানে একটি অনন্য <strong>positional encoding</strong> যোগ করা হয়, যাতে মডেল ক্রম বুঝতে পারে। মূল পেপারে sine/cosine তরঙ্গ ব্যবহার হয়েছিল:</p>
+  <div class="formula">
+    <div class="eq">PE<sub>(pos,2i)</sub> = sin( pos / 10000<sup>2i/d</sup> )<br>PE<sub>(pos,2i+1)</sub> = cos( pos / 10000<sup>2i/d</sup> )</div>
+    <div class="cap">প্রতিটি অবস্থান পায় ভিন্ন কম্পাঙ্কের তরঙ্গের অনন্য স্বাক্ষর</div>
+  </div>
+  <div class="box note">
+    <div class="bx-h"><span class="ic">🆕</span>২০২৬ আপডেট</div>
+    <p>আধুনিক মডেল (Llama, Mistral, Qwen) এখন স্থির sin/cos-এর বদলে <strong>RoPE (Rotary Positional Embedding)</strong> ব্যবহার করে — এটি দীর্ঘ context-এ ভালো generalize করে এবং relative position আরও সুন্দরভাবে ধরে।</p>
+  </div>
+
+  <h3><span class="bn">Feed-Forward, Residual ও Layer Norm</span></h3>
+  <p>প্রতিটি Transformer ব্লকে attention-এর পরে আরও তিনটি অপরিহার্য অংশ থাকে:</p>
+  <div class="kgrid">
+    <div class="kcard"><div class="ki">FFN</div><h5>Feed-Forward Network</h5><p>প্রতিটি token-এ আলাদাভাবে দুটি linear layer + activation (GELU/SwiGLU)। এখানেই মডেলের বেশিরভাগ "জ্ঞান" parameter আকারে জমা থাকে।</p></div>
+    <div class="kcard"><div class="ki">+</div><h5>Residual Connection</h5><p>ইনপুটকে আউটপুটের সাথে যোগ (x + sublayer(x))। গভীর নেটওয়ার্কে gradient বাঁচায়, ট্রেনিং স্থিতিশীল রাখে।</p></div>
+    <div class="kcard"><div class="ki">LN</div><h5>Layer Normalization</h5><p>প্রতিটি স্তরের আউটপুট normalize করে — দ্রুত ও স্থিতিশীল ট্রেনিং। আধুনিক মডেলে <em>RMSNorm</em> ও <em>pre-norm</em> জনপ্রিয়।</p></div>
+  </div>
+
+  <div class="code">
+    <div class="code-bar"><div class="dots"><i></i><i></i><i></i></div><span class="fname">transformer_block.py</span><span class="lang">python</span><button class="copy-btn" data-label="Copy"><span class="t">Copy</span></button></div>
+<pre><code class="language-python">import torch.nn as nn
+
+class TransformerBlock(nn.Module):
+    def __init__(self, d_model, n_heads, ff_mult=4, dropout=0.1):
+        super().__init__()
+        self.ln1 = nn.LayerNorm(d_model)
+        self.attn = MultiHeadAttention(d_model, n_heads)
+        self.ln2 = nn.LayerNorm(d_model)
+        self.ff = nn.Sequential(
+            nn.Linear(d_model, ff_mult * d_model),
+            nn.GELU(),
+            nn.Linear(ff_mult * d_model, d_model),
+            nn.Dropout(dropout),
+        )
+
+    def forward(self, x, mask=None):
+        # pre-norm + residual (আধুনিক স্টাইল)
+        x = x + self.attn(self.ln1(x), mask)   # Attention sublayer
+        x = x + self.ff(self.ln2(x))           # Feed-forward sublayer
+        return x
+</code></pre>
+  </div>
+
+  <div class="box best">
+    <div class="bx-h"><span class="ic">✓</span>Best Practices</div>
+    <ul>
+      <li>আধুনিক মডেলে <strong>pre-norm</strong> (LayerNorm আগে, sublayer পরে) ব্যবহার করুন — গভীর নেটওয়ার্কে অনেক বেশি স্থিতিশীল।</li>
+      <li>সম্ভব হলে <strong>RoPE</strong> + <strong>RMSNorm</strong> + <strong>SwiGLU</strong> activation — ২০২৬-এর de-facto স্ট্যান্ডার্ড।</li>
+      <li>লম্বা sequence-এ <strong>Flash Attention</strong> ব্যবহার করুন — একই গণিত, কিন্তু GPU মেমরি ও গতিতে বিশাল লাভ।</li>
+    </ul>
+  </div>
+  <div class="box mistake">
+    <div class="bx-h"><span class="ic">✕</span>Common Mistakes</div>
+    <ul>
+      <li>Scaling (÷√dₖ) বাদ দেওয়া → softmax saturate, gradient মরে যায়।</li>
+      <li>Decoder-এ causal mask না দেওয়া → মডেল ভবিষ্যৎ token দেখে "চিট" করে, eval-এ ধরা পড়ে।</li>
+      <li>Residual connection বাদ → গভীর মডেলে vanishing gradient, ট্রেনিং আটকে যায়।</li>
+    </ul>
+  </div>
+  <div class="box interview">
+    <div class="bx-h"><span class="ic">🎤</span>Interview Questions</div>
+    <ol>
+      <li>Self-attention-এ √dₖ দিয়ে ভাগ করার কারণ কী?</li>
+      <li>Multi-head ব্যবহারের সুবিধা কী — একটি বড় head দিয়ে কাজ চলে না কেন?</li>
+      <li>Encoder-only, Decoder-only ও Encoder-Decoder মডেলের পার্থক্য ও কোনটা কোথায় ব্যবহৃত হয়?</li>
+      <li>Positional encoding না থাকলে কী সমস্যা হতো? RoPE কেন sin/cos-এর চেয়ে ভালো?</li>
+    </ol>
+  </div>
+
+  <div class="box summary">
+    <div class="bx-h"><span class="ic">📌</span>অধ্যায় ২ — সারসংক্ষেপ</div>
+    <ul>
+      <li><strong>Self-Attention</strong> প্রতিটি token-কে অন্য সব token-এর প্রাসঙ্গিকতা মাপতে দেয় (Q·K → softmax → V)।</li>
+      <li><strong>Multi-Head</strong> একসাথে বহু সম্পর্ক শেখে; <strong>Positional Encoding</strong> ক্রমের তথ্য দেয়।</li>
+      <li>প্রতিটি ব্লক = Attention + FFN, মোড়ানো <strong>Residual + LayerNorm</strong> দিয়ে।</li>
+      <li>আধুনিক LLM = decoder-only + RoPE + RMSNorm + Flash Attention।</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ========================================================= -->
+<!-- ==================== CHAPTER 3 =========================== -->
+<!-- ========================================================= -->
+<section class="chapter" id="ch3" data-screen-label="অধ্যায় ০৩">
+  <div class="ch-head">
+    <div class="ch-num">অধ্যায় ০৩ · Pipeline</div>
+    <h2><span class="bn">LLM Training Pipeline</span></h2>
+    <p class="ch-lead">একটি LLM শূন্য থেকে কীভাবে তৈরি হয়? কাঁচা ডেটা সংগ্রহ থেকে শুরু করে deployment পর্যন্ত ১০টি ধাপের পুরো যাত্রা — প্রতিটি ধাপ কী করে এবং কেন গুরুত্বপূর্ণ।</p>
+  </div>
+
+  <div class="mermaid-card">
+    <div class="mc-bar"><span class="ic"></span><span class="tt">End-to-End Training Pipeline</span></div>
+    <div class="mermaid">
+flowchart TD
+    A["1 · Data Collection<br/><small>web, books, code</small>"] --> B["2 · Data Cleaning<br/><small>dedup, filter, PII remove</small>"]
+    B --> C["3 · Dataset Preparation<br/><small>format, split</small>"]
+    C --> D["4 · Tokenization<br/><small>text → token IDs</small>"]
+    D --> E["5 · Embedding Generation<br/><small>token → vectors</small>"]
+    E --> F["6 · Pretraining<br/><small>next-token, billions of tokens</small>"]
+    F --> G["7 · Fine-Tuning<br/><small>task / instruction</small>"]
+    G --> H["8 · RLHF<br/><small>human preference align</small>"]
+    H --> I["9 · Evaluation<br/><small>benchmarks, safety</small>"]
+    I --> J["10 · Deployment<br/><small>serve to users</small>"]
+    </div>
+  </div>
+
+  <h3><span class="bn">ধাপ ১–৩ · ডেটা: তেলই হলো আসল জ্বালানি</span></h3>
+  <p>একটি LLM যত ভালো, তার ডেটা তত ভালো। "Garbage in, garbage out" এখানে চরম সত্য।</p>
+  <ol>
+    <li><strong>Data Collection</strong> — Common Crawl, Wikipedia, বই, GitHub কোড, প্রশ্নোত্তর ফোরাম থেকে টেরাবাইট-স্কেল টেক্সট সংগ্রহ।</li>
+    <li><strong>Data Cleaning</strong> — ডুপ্লিকেট সরানো (dedup), নিম্নমানের/স্প্যাম টেক্সট ফিল্টার, ক্ষতিকর কন্টেন্ট ও PII (ব্যক্তিগত তথ্য) অপসারণ। এই ধাপ মানের জন্য সবচেয়ে গুরুত্বপূর্ণ।</li>
+    <li><strong>Dataset Preparation</strong> — নির্দিষ্ট ফরম্যাটে সাজানো, train/validation/test ভাগ, এবং shard আকারে সংরক্ষণ।</li>
+  </ol>
+  <div class="code">
+    <div class="code-bar"><div class="dots"><i></i><i></i><i></i></div><span class="fname">clean_dataset.py</span><span class="lang">python</span><button class="copy-btn" data-label="Copy"><span class="t">Copy</span></button></div>
+<pre><code class="language-python">import re
+from datasets import load_dataset
+
+ds = load_dataset("text", data_files={"train": "raw/*.txt"})
+
+def is_good(example):
+    text = example["text"]
+    if len(text) &lt; 200:                       # খুব ছোট বাদ
+        return False
+    if text.count("http") &gt; 20:               # লিংক-স্প্যাম বাদ
+        return False
+    words = text.split()
+    uniq_ratio = len(set(words)) / max(len(words), 1)
+    return uniq_ratio &gt; 0.3                    # পুনরাবৃত্তি বেশি হলে বাদ
+
+def clean(example):
+    t = re.sub(r"\s+", " ", example["text"]).strip()
+    t = re.sub(r"\S+@\S+\.\S+", "[EMAIL]", t)  # PII mask
+    return {"text": t}
+
+ds = ds.filter(is_good).map(clean)
+ds = ds["train"].train_test_split(test_size=0.01)
+print(ds)
+</code></pre>
+  </div>
+
+  <h3><span class="bn">ধাপ ৪–৫ · Tokenization ও Embedding</span></h3>
+  <p>পরিষ্কার টেক্সটকে টোকেনে ভেঙে সংখ্যা (IDs) বানানো হয় (অধ্যায় ৪), তারপর সেই IDs embedding vector-এ রূপান্তরিত হয় (অধ্যায় ৫)। এই দুটো ধাপ ছাড়া neural network কিছুই করতে পারে না — কারণ এটি কেবল সংখ্যা বোঝে।</p>
+
+  <h3><span class="bn">ধাপ ৬ · Pretraining — সবচেয়ে ব্যয়বহুল অংশ</span></h3>
+  <p><strong>Pretraining</strong> হলো বিলিয়ন-ট্রিলিয়ন token-এর উপর মডেলকে শুধু একটাই কাজ শেখানো: <em>next-token prediction</em>। এখানেই কোটি কোটি ডলার ও হাজার হাজার GPU-ঘণ্টা খরচ হয়। ফলাফল একটি <strong>base model</strong> — যা ভাষা জানে, কিন্তু এখনো instruction মানতে শেখেনি।</p>
+  <div class="formula">
+    <div class="eq">Loss = − Σ log P( token<sub>t</sub> | token<sub>&lt;t</sub> )</div>
+    <div class="cap">Cross-entropy loss: সঠিক পরবর্তী token-এর সম্ভাবনা যত বাড়ে, loss তত কমে</div>
+  </div>
+
+  <h3><span class="bn">ধাপ ৭ · Fine-Tuning</span></h3>
+  <p>Base model-কে নির্দিষ্ট আচরণ শেখানো — যেমন প্রশ্নের উত্তর দেওয়া, instruction মানা (Instruction Tuning), বা কোনো নির্দিষ্ট ডোমেইন (মেডিকেল/আইন)। তুলনায় অনেক কম ডেটা ও খরচ। বিস্তারিত অধ্যায় ৮-এ।</p>
+
+  <h3><span class="bn">ধাপ ৮ · RLHF — মানুষের পছন্দে সাজানো</span></h3>
+  <p><strong>RLHF (Reinforcement Learning from Human Feedback)</strong> হলো সেই গোপন উপাদান যা base model-কে সহায়ক, নিরাপদ ও বিনয়ী assistant-এ পরিণত করে।</p>
+  <div class="mermaid-card">
+    <div class="mc-bar"><span class="ic"></span><span class="tt">RLHF — তিন ধাপ</span></div>
+    <div class="mermaid">
+flowchart LR
+    SFT["① SFT<br/><small>মানুষের লেখা<br/>উত্তর দিয়ে শেখানো</small>"] --> RM["② Reward Model<br/><small>মানুষ উত্তর rank করে;<br/>মডেল 'ভালো' চিনতে শেখে</small>"]
+    RM --> PPO["③ RL (PPO/DPO)<br/><small>reward সর্বোচ্চ করতে<br/>policy আপডেট</small>"]
+    </div>
+  </div>
+  <div class="box note">
+    <div class="bx-h"><span class="ic">🆕</span>২০২৬ ট্রেন্ড</div>
+    <p>জটিল PPO-র জায়গায় এখন অনেকে <strong>DPO (Direct Preference Optimization)</strong> ব্যবহার করেন — reward model আলাদা না বানিয়ে সরাসরি preference data থেকে শেখা যায়, সহজ ও স্থিতিশীল।</p>
+  </div>
+
+  <h3><span class="bn">ধাপ ৯–১০ · Evaluation ও Deployment</span></h3>
+  <ul>
+    <li><strong>Evaluation</strong> — MMLU, HumanEval, GSM8K-এর মতো benchmark, পাশাপাশি নিরাপত্তা ও red-teaming পরীক্ষা।</li>
+    <li><strong>Deployment</strong> — মডেলকে quantize/optimize করে vLLM/TGI দিয়ে serve করা (অধ্যায় ৯ ও ১০)।</li>
+  </ul>
+
+  <div class="box best">
+    <div class="bx-h"><span class="ic">✓</span>Best Practices</div>
+    <ul>
+      <li>মডেল scale করার আগে <strong>ডেটার মানে</strong> বিনিয়োগ করুন — quality &gt; quantity।</li>
+      <li>train ও test সেটে <strong>data leakage</strong> এড়ান (benchmark টেক্সট ট্রেনিং সেটে ঢুকে গেলে ফল মিথ্যা ভালো দেখায়)।</li>
+      <li>প্রতিটি ধাপের checkpoint ও metric লগ করুন — reproducibility-র জন্য অপরিহার্য।</li>
+    </ul>
+  </div>
+  <div class="box mistake">
+    <div class="bx-h"><span class="ic">✕</span>Common Mistakes</div>
+    <ul>
+      <li>নোংরা/ডুপ্লিকেট ডেটায় ট্রেনিং → মডেল মুখস্থ করে, generalize করে না।</li>
+      <li>শুধু benchmark দেখে সিদ্ধান্ত — বাস্তব ব্যবহারে ভিন্ন আচরণ হতে পারে।</li>
+      <li>RLHF-এ over-optimization → মডেল "reward hacking" করে, কৃত্রিম/চাটুকার উত্তর দেয়।</li>
+    </ul>
+  </div>
+
+  <div class="box summary">
+    <div class="bx-h"><span class="ic">📌</span>অধ্যায় ৩ — সারসংক্ষেপ</div>
+    <ul>
+      <li>Pipeline: <strong>Data → Clean → Prep → Tokenize → Embed → Pretrain → Fine-tune → RLHF → Eval → Deploy</strong>।</li>
+      <li><strong>Pretraining</strong> ভাষা শেখায় (ব্যয়বহুল); <strong>Fine-tuning + RLHF</strong> আচরণ গড়ে (সস্তা কিন্তু সিদ্ধান্তমূলক)।</li>
+      <li>ডেটার মানই চূড়ান্ত মান নির্ধারণ করে — pipeline-এর হৃদয় ধাপ ১–৩।</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ========================================================= -->
+<!-- ==================== CHAPTER 4 =========================== -->
+<!-- ========================================================= -->
+<section class="chapter" id="ch4" data-screen-label="অধ্যায় ০৪">
+  <div class="ch-head">
+    <div class="ch-num">অধ্যায় ০৪ · Tokenization</div>
+    <h2><span class="bn">Tokenization — টেক্সটকে সংখ্যায় ভাঙা</span></h2>
+    <p class="ch-lead">LLM-এর প্রথম দরজা। টেক্সট কীভাবে token-এ ভাঙা হয়, BPE / SentencePiece / WordPiece-এর পার্থক্য, এবং Python-এ <code>tiktoken</code> ও 🤗 <code>transformers</code> দিয়ে হাতে-কলমে করা।</p>
+  </div>
+
+  <h3><span class="bn">কেন subword tokenization?</span></h3>
+  <p>দুটো সরল পথ আছে, দুটোতেই সমস্যা:</p>
+  <div class="kgrid">
+    <div class="kcard"><div class="ki">A</div><h5>প্রতি শব্দ = ১ token</h5><p>vocabulary বিশাল হয়ে যায়; নতুন/ভুল-বানান শব্দ পেলে <code>[UNK]</code> দেখায় — তথ্য হারায়।</p></div>
+    <div class="kcard"><div class="ki">B</div><h5>প্রতি অক্ষর = ১ token</h5><p>vocabulary ছোট, কিন্তু sequence বিশাল লম্বা ও ধীর হয়; অর্থ ধরা কঠিন।</p></div>
+    <div class="kcard"><div class="ki">★</div><h5>Subword (মাঝামাঝি)</h5><p>সাধারণ শব্দ আস্ত থাকে, বিরল শব্দ টুকরো হয়। ভারসাম্য — তাই সব আধুনিক LLM এটাই ব্যবহার করে।</p></div>
+  </div>
+
+  <h3><span class="bn">তিনটি প্রধান অ্যালগরিদম</span></h3>
+  <div class="tbl-wrap">
+  <table>
+    <thead><tr><th>অ্যালগরিদম</th><th>মূল ধারণা</th><th>ব্যবহার করে</th></tr></thead>
+    <tbody>
+      <tr><td><strong>BPE</strong><br>(Byte-Pair Encoding)</td><td>সবচেয়ে ঘন ঘন পাশাপাশি আসা character-জোড়া বারবার merge করে subword তৈরি।</td><td>GPT, Llama, Mistral</td></tr>
+      <tr><td><strong>WordPiece</strong></td><td>BPE-র মতোই, তবে merge বাছে likelihood (সম্ভাবনা) সর্বোচ্চ করার ভিত্তিতে।</td><td>BERT, DistilBERT</td></tr>
+      <tr><td><strong>SentencePiece</strong></td><td>ভাষা-নিরপেক্ষ; space-কেও প্রতীক (▁) ধরে — ফলে স্পেস ছাড়া ভাষাতেও (চীনা/জাপানি) কাজ করে।</td><td>T5, Llama, Gemma</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h4>BPE কীভাবে merge করে — সরল উদাহরণ</h4>
+  <div class="ascii">
+    <span class="cap">BPE merge steps</span>
+<pre>  শুরু (অক্ষর):  l o w   l o w e r   n e w e s t
+  ধাপ 1: সবচেয়ে ঘন জোড়া "e s" → "es"     ...  n e w es t
+  ধাপ 2: "es t" → "est"                    ...  n e w est
+  ধাপ 3: "l o" → "lo"                      ...  lo w
+  ...
+  ফলাফল vocab:  {lo, w, est, new, er, ...}
+  "lowest" → ["low", "est"]   "newer" → ["new", "er"]</pre>
+  </div>
+
+  <h3><span class="bn">Python · tiktoken (GPT-স্টাইল)</span></h3>
+  <div class="code">
+    <div class="code-bar"><div class="dots"><i></i><i></i><i></i></div><span class="fname">tiktoken_demo.py</span><span class="lang">python</span><button class="copy-btn" data-label="Copy"><span class="t">Copy</span></button></div>
+<pre><code class="language-python"># pip install tiktoken
+import tiktoken
+
+enc = tiktoken.get_encoding("cl100k_base")   # GPT-4 পরিবার
+
+text = "Machine learning শেখা মজার!"
+ids = enc.encode(text)
+print("Token IDs:", ids)
+print("Token সংখ্যা:", len(ids))
+
+# প্রতিটি token ফিরে দেখা
+for i in ids:
+    print(f"{i:&gt;6}  →  {enc.decode([i])!r}")
+
+# decode করে আবার টেক্সট
+print("Decoded:", enc.decode(ids))
+</code></pre>
+  </div>
+
+  <h3><span class="bn">Python · 🤗 transformers tokenizer</span></h3>
+  <div class="code">
+    <div class="code-bar"><div class="dots"><i></i><i></i><i></i></div><span class="fname">hf_tokenizer.py</span><span class="lang">python</span><button class="copy-btn" data-label="Copy"><span class="t">Copy</span></button></div>
+<pre><code class="language-python"># pip install transformers
+from transformers import AutoTokenizer
+
+tok = AutoTokenizer.from_pretrained("bert-base-multilingual-cased")
+
+text = "LLM শেখা সহজ"
+out = tok(text, return_tensors="pt")
+
+print("Tokens :", tok.tokenize(text))      # ['LL', '##M', 'শ', '##েখা', ...]
+print("IDs    :", out["input_ids"][0].tolist())
+print("Decoded:", tok.decode(out["input_ids"][0]))
+# input_ids ছাড়াও attention_mask পাওয়া যায়, মডেলে সরাসরি দেওয়া যায়
+</code></pre>
+  </div>
+
+  <h3><span class="bn">পুরো পথ — Text → Embedding</span></h3>
+  <div class="ascii">
+    <span class="cap">Input → Tokens → IDs → Embeddings</span>
+<pre>   "I love AI"
+        │  tokenizer
+        ▼
+   ["I", " love", " AI"]
+        │  vocab lookup
+        ▼
+   [40, 1842, 9552]                      ← token IDs
+        │  embedding matrix (V × d)
+        ▼
+   [[0.12, -0.4, ...],   ← "I"     (d-dim vector)
+    [0.91,  0.2, ...],   ← " love"
+    [-0.3,  0.7, ...]]   ← " AI"    এখন মডেল গণিত করতে পারে</pre>
+  </div>
+
+  <div class="box best">
+    <div class="bx-h"><span class="ic">✓</span>Best Practices</div>
+    <ul>
+      <li>মডেল ও tokenizer সবসময় <strong>একই pair</strong> ব্যবহার করুন — mismatch হলে আউটপুট অর্থহীন।</li>
+      <li>API খরচ ও context সীমা আগে থেকে আঁচ করতে <code>len(enc.encode(text))</code> দিয়ে token গুনুন।</li>
+      <li>বাংলা/বহুভাষিক কাজে এমন tokenizer বাছুন যার vocab-এ ঐ ভাষা ভালোভাবে ধরা — নাহলে এক শব্দ বহু token-এ ভেঙে খরচ বাড়ে।</li>
+    </ul>
+  </div>
+  <div class="box mistake">
+    <div class="bx-h"><span class="ic">✕</span>Common Mistakes</div>
+    <ul>
+      <li>special token (<code>[CLS]</code>, <code>&lt;s&gt;</code>, <code>&lt;eos&gt;</code>) যোগ করতে ভুলে যাওয়া।</li>
+      <li>token সংখ্যাকে শব্দ সংখ্যা ভেবে context সীমা ভুল হিসাব করা।</li>
+      <li>fine-tune করা মডেলে আলাদা tokenizer ব্যবহার করা।</li>
+    </ul>
+  </div>
+  <div class="box interview">
+    <div class="bx-h"><span class="ic">🎤</span>Interview Questions</div>
+    <ol>
+      <li>BPE ও WordPiece-এর মূল পার্থক্য কী?</li>
+      <li>SentencePiece কেন স্পেসহীন ভাষায় ভালো কাজ করে?</li>
+      <li>Subword tokenization কীভাবে <code>[UNK]</code> সমস্যা কমায়?</li>
+    </ol>
+  </div>
+  <div class="box summary">
+    <div class="bx-h"><span class="ic">📌</span>অধ্যায় ৪ — সারসংক্ষেপ</div>
+    <ul>
+      <li>Tokenization টেক্সটকে subword token → ID-তে ভাঙে; LLM-এর একমাত্র ইনপুট।</li>
+      <li><strong>BPE</strong> (GPT/Llama), <strong>WordPiece</strong> (BERT), <strong>SentencePiece</strong> (T5/Gemma)।</li>
+      <li>সবসময় মডেলের নিজস্ব tokenizer ব্যবহার করুন; token গুনে খরচ ও সীমা হিসাব করুন।</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ========================================================= -->
+<!-- ==================== CHAPTER 5 =========================== -->
+<!-- ========================================================= -->
+<section class="chapter" id="ch5" data-screen-label="অধ্যায় ০৫">
+  <div class="ch-head">
+    <div class="ch-num">অধ্যায় ০৫ · Embeddings</div>
+    <h2><span class="bn">Embeddings — অর্থের জ্যামিতি</span></h2>
+    <p class="ch-lead">Embedding কী, Vector Space ও Similarity Search মানে কী, এবং Sentence-Transformers দিয়ে বাস্তবে কীভাবে টেক্সটকে vector বানিয়ে অর্থ-ভিত্তিক সার্চ করা যায়।</p>
+  </div>
+
+  <h3><span class="bn">Embedding আসলে কী?</span></h3>
+  <p><strong>Embedding</strong> হলো টেক্সটকে (শব্দ/বাক্য/ডকুমেন্ট) একটি স্থির-দৈর্ঘ্যের সংখ্যার তালিকা — vector — এ রূপান্তর, যেখানে <em>অর্থ</em> ধরা থাকে দূরত্ব ও দিক হিসেবে। একই অর্থের দুটো বাক্য vector-স্পেসে কাছাকাছি বসে, ভিন্ন অর্থেরগুলো দূরে।</p>
+
+  <div class="mermaid-card">
+    <div class="mc-bar"><span class="ic"></span><span class="tt">Text → Vector → Vector DB</span></div>
+    <div class="mermaid">
+flowchart TD
+    T["📄 Text<br/><small>'বিড়াল দুধ খায়'</small>"] --> M["🧬 Embedding Model<br/><small>e.g. all-MiniLM</small>"]
+    M --> V["🔢 Vector<br/><small>[0.21, -0.07, ... ] (384-dim)</small>"]
+    V --> DB[("🗄️ Vector Database<br/><small>FAISS / Pinecone / Qdrant</small>")]
+    Q["❓ Query"] --> M
+    DB --> S["🔍 Similarity Search<br/><small>nearest neighbours</small>"]
+    </div>
+  </div>
+
+  <h3><span class="bn">Vector Space — অর্থের মানচিত্র</span></h3>
+  <p>প্রতিটি vector একটি বহু-মাত্রিক স্পেসে একটি বিন্দু। এই স্পেসে দিক ও দূরত্বের অর্থ আছে:</p>
+  <div class="ascii">
+    <span class="cap">2D-তে সরলীকৃত vector space</span>
+<pre>        প্রাণী
+          ▲
+    বিড়াল•  •কুকুর
+          │        •সিংহ
+          │
+   ───────┼──────────────►  যান্ত্রিক
+          │  •গাড়ি  •বাস
+          │     •ট্রাক
+   কাছাকাছি অর্থ = কাছাকাছি বিন্দু।  "বিড়াল" ও "কুকুর" কাছে,
+   কিন্তু "গাড়ি" থেকে দূরে।</pre>
+  </div>
+
+  <h3><span class="bn">Similarity Search — কতটা মিল?</span></h3>
+  <p>দুটো vector কতটা মেলে তা মাপা হয় সাধারণত <strong>cosine similarity</strong> দিয়ে — তাদের মধ্যবর্তী কোণের cosine। মান ১ মানে একই দিক (খুব মিল), ০ মানে সম্পর্কহীন।</p>
+  <div class="formula">
+    <div class="eq">cosine(<b>A</b>,<b>B</b>) = ( <b>A</b> · <b>B</b> ) / ( ‖<b>A</b>‖ ‖<b>B</b>‖ )</div>
+    <div class="cap">দুই vector-এর কোণ যত ছোট, similarity তত বেশি (১-এর কাছে)</div>
+  </div>
+
+  <h3><span class="bn">Python · Sentence-Transformers</span></h3>
+  <div class="code">
+    <div class="code-bar"><div class="dots"><i></i><i></i><i></i></div><span class="fname">embeddings_demo.py</span><span class="lang">python</span><button class="copy-btn" data-label="Copy"><span class="t">Copy</span></button></div>
+<pre><code class="language-python"># pip install sentence-transformers
+from sentence_transformers import SentenceTransformer, util
+
+model = SentenceTransformer("all-MiniLM-L6-v2")   # 384-dim, দ্রুত
+
+docs = [
+    "বিড়াল দুধ খেতে ভালোবাসে",
+    "আজ ঢাকায় বৃষ্টি হচ্ছে",
+    "পোষা প্রাণী হিসেবে বিড়াল জনপ্রিয়",
+]
+emb = model.encode(docs, convert_to_tensor=True)   # (3, 384)
+
+query = "বিড়াল সম্পর্কে কিছু বলো"
+q_emb = model.encode(query, convert_to_tensor=True)
+
+scores = util.cos_sim(q_emb, emb)[0]               # cosine similarity
+for doc, s in sorted(zip(docs, scores), key=lambda x: -x[1]):
+    print(f"{s:.3f}  {doc}")
+# বিড়াল-সম্পর্কিত বাক্যগুলো সবচেয়ে উপরে আসবে — অর্থ-ভিত্তিক সার্চ!
+</code></pre>
+  </div>
+
+  <div class="box note">
+    <div class="bx-h"><span class="ic">💡</span>Embedding vs LLM</div>
+    <p>Embedding মডেল আর generative LLM আলাদা কাজ করে। Embedding মডেল টেক্সটকে <strong>একটি vector</strong>-এ সংকুচিত করে (search/clustering-এর জন্য); generative LLM <strong>নতুন token</strong> তৈরি করে। RAG-তে (অধ্যায় ৭) দুটোই একসাথে লাগে।</p>
+  </div>
+
+  <div class="box best">
+    <div class="bx-h"><span class="ic">✓</span>Best Practices</div>
+    <ul>
+      <li>সব embedding <strong>normalize</strong> করুন (unit length) → dot product = cosine, দ্রুত ও সঙ্গতিপূর্ণ।</li>
+      <li>index ও query-তে <strong>একই embedding মডেল</strong> ব্যবহার করুন।</li>
+      <li>ডোমেইন-নির্দিষ্ট কাজে fine-tuned/বহুভাষিক embedding মডেল বাছুন (যেমন <code>bge-m3</code>, <code>multilingual-e5</code>)।</li>
+    </ul>
+  </div>
+  <div class="box interview">
+    <div class="bx-h"><span class="ic">🎤</span>Interview Questions</div>
+    <ol>
+      <li>Cosine similarity ও Euclidean distance — কখন কোনটা?</li>
+      <li>Word embedding (Word2Vec) ও contextual embedding (BERT)-এর পার্থক্য?</li>
+      <li>একটি বিশাল কর্পাসে similarity search দ্রুত করতে কী ব্যবহার করবেন (ANN/HNSW)?</li>
+    </ol>
+  </div>
+  <div class="box summary">
+    <div class="bx-h"><span class="ic">📌</span>অধ্যায় ৫ — সারসংক্ষেপ</div>
+    <ul>
+      <li><strong>Embedding</strong> = টেক্সট → অর্থপূর্ণ vector; কাছাকাছি অর্থ = কাছাকাছি বিন্দু।</li>
+      <li><strong>Similarity search</strong> cosine দিয়ে নিকটতম প্রতিবেশী খোঁজে — semantic search-এর ভিত্তি।</li>
+      <li>Vector DB-তে embedding জমিয়ে RAG, recommendation, clustering সব সম্ভব।</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ========================================================= -->
+<!-- ==================== CHAPTER 6 =========================== -->
+<!-- ========================================================= -->
+<section class="chapter" id="ch6" data-screen-label="অধ্যায় ০৬">
+  <div class="ch-head">
+    <div class="ch-num">অধ্যায় ০৬ · Build From Scratch</div>
+    <h2><span class="bn">নিজের একটি Mini-GPT বানানো</span></h2>
+    <p class="ch-lead">তত্ত্ব যথেষ্ট — এবার হাত নোংরা করি। PyTorch দিয়ে শূন্য থেকে একটি ছোট GPT তৈরি করব: dataset, tokenizer, embedding, attention block, transformer ও training loop — সব নিজের হাতে।</p>
+  </div>
+
+  <h3><span class="bn">মডেলের নকশা</span></h3>
+  <div class="mermaid-card">
+    <div class="mc-bar"><span class="ic"></span><span class="tt">Mini-GPT data flow</span></div>
+    <div class="mermaid">
+flowchart TB
+    X["token IDs (B,T)"] --> TE["Token Embedding"]
+    POS["Positional Embedding"] --> ADD["＋"]
+    TE --> ADD
+    ADD --> B1["Transformer Block × N<br/><small>Masked MHA + FFN</small>"]
+    B1 --> LN["Final LayerNorm"]
+    LN --> H["Linear head → vocab logits"]
+    H --> SM["Softmax → next token"]
+    </div>
+  </div>
+
+  <h4>ধাপ ১ · Dataset ও character tokenizer</h4>
+  <div class="code">
+    <div class="code-bar"><div class="dots"><i></i><i></i><i></i></div><span class="fname">data.py</span><span class="lang">python</span><button class="copy-btn" data-label="Copy"><span class="t">Copy</span></button></div>
+<pre><code class="language-python">import torch
+
+# যেকোনো .txt ফাইল — এখানে character-level (সরলতার জন্য)
+text = open("input.txt", encoding="utf-8").read()
+chars = sorted(set(text))
+vocab_size = len(chars)
+
+stoi = {c: i for i, c in enumerate(chars)}   # char → id
+itos = {i: c for c, i in stoi.items()}       # id → char
+encode = lambda s: [stoi[c] for c in s]
+decode = lambda l: "".join(itos[i] for i in l)
+
+data = torch.tensor(encode(text), dtype=torch.long)
+n = int(0.9 * len(data))
+train_data, val_data = data[:n], data[n:]
+
+block_size = 128                              # context length
+def get_batch(split, batch_size=32):
+    d = train_data if split == "train" else val_data
+    ix = torch.randint(len(d) - block_size, (batch_size,))
+    x = torch.stack([d[i:i+block_size] for i in ix])
+    y = torch.stack([d[i+1:i+block_size+1] for i in ix])   # shifted by 1
+    return x, y
+</code></pre>
+  </div>
+
+  <h4>ধাপ ২ · Attention block + Transformer block</h4>
+  <div class="code">
+    <div class="code-bar"><div class="dots"><i></i><i></i><i></i></div><span class="fname">blocks.py</span><span class="lang">python</span><button class="copy-btn" data-label="Copy"><span class="t">Copy</span></button></div>
+<pre><code class="language-python">import torch, torch.nn as nn
+from torch.nn import functional as F
+
+class Head(nn.Module):
+    def __init__(self, n_embd, head_size, block_size):
+        super().__init__()
+        self.key   = nn.Linear(n_embd, head_size, bias=False)
+        self.query = nn.Linear(n_embd, head_size, bias=False)
+        self.value = nn.Linear(n_embd, head_size, bias=False)
+        # causal mask: ভবিষ্যৎ token লুকানো
+        self.register_buffer("tril", torch.tril(torch.ones(block_size, block_size)))
+
+    def forward(self, x):
+        B, T, C = x.shape
+        k, q, v = self.key(x), self.query(x), self.value(x)
+        att = q @ k.transpose(-2, -1) * C**-0.5
+        att = att.masked_fill(self.tril[:T, :T] == 0, float('-inf'))
+        att = F.softmax(att, dim=-1)
+        return att @ v
+
+class Block(nn.Module):
+    def __init__(self, n_embd, n_head, block_size):
+        super().__init__()
+        hs = n_embd // n_head
+        self.heads = nn.ModuleList([Head(n_embd, hs, block_size) for _ in range(n_head)])
+        self.proj  = nn.Linear(n_embd, n_embd)
+        self.ffn   = nn.Sequential(
+            nn.Linear(n_embd, 4*n_embd), nn.GELU(), nn.Linear(4*n_embd, n_embd))
+        self.ln1, self.ln2 = nn.LayerNorm(n_embd), nn.LayerNorm(n_embd)
+
+    def forward(self, x):
+        h = torch.cat([head(self.ln1(x)) for head in self.heads], dim=-1)
+        x = x + self.proj(h)          # residual 1
+        x = x + self.ffn(self.ln2(x)) # residual 2
+        return x
+</code></pre>
+  </div>
+
+  <h4>ধাপ ৩ · পুরো GPT মডেল</h4>
+  <div class="code">
+    <div class="code-bar"><div class="dots"><i></i><i></i><i></i></div><span class="fname">model.py</span><span class="lang">python</span><button class="copy-btn" data-label="Copy"><span class="t">Copy</span></button></div>
+<pre><code class="language-python">class MiniGPT(nn.Module):
+    def __init__(self, vocab_size, n_embd=192, n_head=6, n_layer=6, block_size=128):
+        super().__init__()
+        self.block_size = block_size
+        self.tok_emb = nn.Embedding(vocab_size, n_embd)
+        self.pos_emb = nn.Embedding(block_size, n_embd)
+        self.blocks  = nn.Sequential(*[Block(n_embd, n_head, block_size) for _ in range(n_layer)])
+        self.ln_f    = nn.LayerNorm(n_embd)
+        self.head    = nn.Linear(n_embd, vocab_size)
+
+    def forward(self, idx, targets=None):
+        B, T = idx.shape
+        tok = self.tok_emb(idx)                                  # (B,T,C)
+        pos = self.pos_emb(torch.arange(T, device=idx.device))  # (T,C)
+        x = self.blocks(tok + pos)
+        logits = self.head(self.ln_f(x))                         # (B,T,vocab)
+        loss = None
+        if targets is not None:
+            loss = F.cross_entropy(logits.view(-1, logits.size(-1)), targets.view(-1))
+        return logits, loss
+
+    @torch.no_grad()
+    def generate(self, idx, max_new_tokens):
+        for _ in range(max_new_tokens):
+            logits, _ = self(idx[:, -self.block_size:])
+            probs = F.softmax(logits[:, -1, :], dim=-1)
+            idx = torch.cat([idx, torch.multinomial(probs, 1)], dim=1)
+        return idx
+</code></pre>
+  </div>
+
+  <h4>ধাপ ৪ · Training loop</h4>
+  <div class="code">
+    <div class="code-bar"><div class="dots"><i></i><i></i><i></i></div><span class="fname">train.py</span><span class="lang">python</span><button class="copy-btn" data-label="Copy"><span class="t">Copy</span></button></div>
+<pre><code class="language-python">device = "cuda" if torch.cuda.is_available() else "cpu"
+model = MiniGPT(vocab_size, block_size=block_size).to(device)
+opt = torch.optim.AdamW(model.parameters(), lr=3e-4)
+
+for step in range(5000):
+    xb, yb = get_batch("train")
+    xb, yb = xb.to(device), yb.to(device)
+    _, loss = model(xb, yb)
+    opt.zero_grad(set_to_none=True)
+    loss.backward()
+    opt.step()
+    if step % 500 == 0:
+        print(f"step {step:5d} | loss {loss.item():.4f}")
+
+# নতুন টেক্সট তৈরি
+start = torch.zeros((1, 1), dtype=torch.long, device=device)
+print(decode(model.generate(start, 300)[0].tolist()))
+</code></pre>
+  </div>
+
+  <div class="box note">
+    <div class="bx-h"><span class="ic">🔬</span>এটা কেন গুরুত্বপূর্ণ</div>
+    <p>এই ~১৫০ লাইনই GPT-র সম্পূর্ণ মূল ধারণা ধারণ করে। GPT-4 আর এই Mini-GPT-র পার্থক্য মূলত <strong>scale</strong> (আরও বড় layer, head, ডেটা, compute) — architecture প্রায় একই। একবার নিজে চালালে "ব্ল্যাক বক্স" আর রহস্য থাকে না।</p>
+  </div>
+  <div class="box best">
+    <div class="bx-h"><span class="ic">✓</span>Best Practices</div>
+    <ul>
+      <li>ছোট থেকে শুরু করুন (অল্প layer/embd), CPU-তেও চলবে; তারপর scale করুন।</li>
+      <li><strong>AdamW</strong> + learning-rate warmup + cosine decay ব্যবহার করুন।</li>
+      <li>train ও val loss দুটোই ট্র্যাক করুন — val বাড়তে থাকলে overfitting।</li>
+    </ul>
+  </div>
+  <div class="box mistake">
+    <div class="bx-h"><span class="ic">✕</span>Common Mistakes</div>
+    <ul>
+      <li>target এক ধাপ shift করতে ভুলে যাওয়া (y = পরের token)।</li>
+      <li>causal mask বাদ দেওয়া → মডেল ভবিষ্যৎ দেখে, generate-এ অর্থহীন আউটপুট।</li>
+      <li><code>optimizer.zero_grad()</code> না দেওয়া → gradient জমে যায়।</li>
+    </ul>
+  </div>
+  <div class="box summary">
+    <div class="bx-h"><span class="ic">📌</span>অধ্যায় ৬ — সারসংক্ষেপ</div>
+    <ul>
+      <li>GPT = Token+Pos embedding → N× (Masked Attention + FFN) → Linear head।</li>
+      <li>Training = next-token prediction-এ cross-entropy loss কমানো।</li>
+      <li>GPT-4 আর Mini-GPT-র মূল পার্থক্য <strong>scale</strong>, ধারণা নয়।</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ========================================================= -->
+<!-- ==================== CHAPTER 7 =========================== -->
+<!-- ========================================================= -->
+<section class="chapter" id="ch7" data-screen-label="অধ্যায় ০৭">
+  <div class="ch-head">
+    <div class="ch-num">অধ্যায় ০৭ · RAG</div>
+    <h2><span class="bn">Retrieval-Augmented Generation (RAG)</span></h2>
+    <p class="ch-lead">LLM-কে আপনার নিজের ডেটা (PDF, ডকুমেন্ট, ডেটাবেস) দিয়ে "কথা বলানো"-র সবচেয়ে জনপ্রিয় কৌশল। কেন RAG দরকার, এর প্রতিটি অংশ, এবং FAISS দিয়ে একটি কাজ-করা RAG পাইপলাইন।</p>
+  </div>
+
+  <h3><span class="bn">কেন RAG?</span></h3>
+  <p>একটি pretrained LLM শুধু সেটুকুই জানে যা ট্রেনিংয়ের সময় দেখেছে। তিনটি বড় সমস্যা:</p>
+  <ul>
+    <li><strong>Knowledge cutoff</strong> — ট্রেনিংয়ের পরের ঘটনা জানে না।</li>
+    <li><strong>Hallucination</strong> — না জানলে আত্মবিশ্বাসের সাথে ভুল বানিয়ে বলে।</li>
+    <li><strong>Private data</strong> — আপনার কোম্পানির অভ্যন্তরীণ ডকুমেন্ট তো জানেই না।</li>
+  </ul>
+  <p><strong>RAG-এর সমাধান:</strong> প্রশ্নের সাথে সম্পর্কিত তথ্য আগে একটি knowledge base থেকে খুঁজে এনে (retrieve), সেটি prompt-এ ঢুকিয়ে (augment) তারপর LLM-কে উত্তর দিতে বলা (generate)। মডেল re-train না করেই নতুন/ব্যক্তিগত জ্ঞান পায়।</p>
+
+  <div class="mermaid-card">
+    <div class="mc-bar"><span class="ic"></span><span class="tt">RAG Architecture</span></div>
+    <div class="mermaid">
+flowchart TD
+    Q["👤 User Query"] --> EM["🧬 Embedding Model"]
+    EM --> VEC["query vector"]
+    VEC --> VDB[("🗄️ Vector DB<br/><small>chunked docs</small>")]
+    VDB --> RET["🔍 Retriever<br/><small>top-k similar chunks</small>"]
+    RET --> CTX["📑 Context Injection<br/><small>prompt + chunks</small>"]
+    Q --> CTX
+    CTX --> LLM["🤖 LLM"]
+    LLM --> ANS["💬 Grounded Answer<br/><small>+ source citation</small>"]
+    DOCS["📚 Your Documents"] -. offline indexing .-> SPLIT["✂️ Chunking"] -. embed .-> VDB
+    </div>
+  </div>
+
+  <h3><span class="bn">প্রতিটি অংশ</span></h3>
+  <div class="kgrid">
+    <div class="kcard"><div class="ki">1</div><h5>Chunking</h5><p>বড় ডকুমেন্টকে ছোট টুকরায় (যেমন ৫০০ token, কিছুটা overlap সহ) ভাগ করা।</p></div>
+    <div class="kcard"><div class="ki">2</div><h5>Embedding</h5><p>প্রতিটি chunk-কে vector-এ রূপান্তর করে index-এ জমানো।</p></div>
+    <div class="kcard"><div class="ki">3</div><h5>Vector DB</h5><p>FAISS/Qdrant/Pinecone-এ vector সংরক্ষণ ও দ্রুত nearest-neighbour search।</p></div>
+    <div class="kcard"><div class="ki">4</div><h5>Retrieval</h5><p>query-র সাথে সবচেয়ে মিল top-k chunk বের করা।</p></div>
+    <div class="kcard"><div class="ki">5</div><h5>Context Injection</h5><p>retrieved chunk + প্রশ্ন একসাথে prompt-এ সাজানো।</p></div>
+    <div class="kcard"><div class="ki">6</div><h5>Generation</h5><p>LLM ঐ প্রসঙ্গ ধরে উত্তর দেয় — সূত্রসহ, কম hallucination।</p></div>
+  </div>
+
+  <h3><span class="bn">Python · FAISS দিয়ে সম্পূর্ণ RAG</span></h3>
+  <div class="code">
+    <div class="code-bar"><div class="dots"><i></i><i></i><i></i></div><span class="fname">rag_faiss.py</span><span class="lang">python</span><button class="copy-btn" data-label="Copy"><span class="t">Copy</span></button></div>
+<pre><code class="language-python"># pip install faiss-cpu sentence-transformers
+import faiss, numpy as np
+from sentence_transformers import SentenceTransformer
+
+embedder = SentenceTransformer("all-MiniLM-L6-v2")
+
+# ১) knowledge base (বাস্তবে PDF/DB থেকে chunk করে আসবে)
+docs = [
+    "আমাদের অফিস সকাল ৯টা থেকে বিকেল ৫টা পর্যন্ত খোলা থাকে।",
+    "রিফান্ড নীতি অনুযায়ী ৭ দিনের মধ্যে ফেরত চাওয়া যায়।",
+    "সাপোর্ট টিমের ইমেইল <a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="e4979194948b9690a4819c8589948881ca878b89">[email&#160;protected]</a>।",
+]
+
+# ২) index তৈরি (offline)
+emb = embedder.encode(docs, normalize_embeddings=True)
+index = faiss.IndexFlatIP(emb.shape[1])     # inner product = cosine (normalized)
+index.add(np.array(emb, dtype="float32"))
+
+# ৩) retrieval
+def retrieve(query, k=2):
+    q = embedder.encode([query], normalize_embeddings=True).astype("float32")
+    scores, idx = index.search(q, k)
+    return [docs[i] for i in idx[0]]
+
+# ৪) context injection + generation
+def answer(query):
+    context = "\n".join(f"- {c}" for c in retrieve(query))
+    prompt = f"""নিচের তথ্য ব্যবহার করে বাংলায় উত্তর দাও।
+তথ্য:
+{context}
+
+প্রশ্ন: {query}
+উত্তর:"""
+    return prompt   # এই prompt LLM-এ পাঠান (OpenAI/Ollama/vLLM)
+
+print(answer("রিফান্ড কতদিনে পাওয়া যায়?"))
+</code></pre>
+  </div>
+  <div class="box note">
+    <div class="bx-h"><span class="ic">🆕</span>২০২৬ আপগ্রেড</div>
+    <p>প্রোডাকশন RAG-এ যোগ করুন: <strong>hybrid search</strong> (keyword + vector), <strong>re-ranker</strong> (যেমন bge-reranker) দিয়ে retrieved chunk পুনরায় sort, এবং <strong>citation</strong> ফিরিয়ে দেওয়া। LangChain/LlamaIndex এসব রেডিমেড দেয়।</p>
+  </div>
+  <div class="box best">
+    <div class="bx-h"><span class="ic">✓</span>Best Practices</div>
+    <ul>
+      <li>chunk size ও overlap টিউন করুন (২০০–৮০০ token, ১০–২০% overlap সাধারণ)।</li>
+      <li>retrieved chunk-এ <strong>সূত্র (source)</strong> রাখুন — উত্তরে citation দেখাতে পারবেন।</li>
+      <li>prompt-এ স্পষ্ট বলুন: "শুধু প্রদত্ত তথ্য থেকে উত্তর দাও, না জানলে বলো জানি না।"</li>
+    </ul>
+  </div>
+  <div class="box mistake">
+    <div class="bx-h"><span class="ic">✕</span>Common Mistakes</div>
+    <ul>
+      <li>খুব বড় chunk → অপ্রাসঙ্গিক তথ্য, context নষ্ট; খুব ছোট → প্রসঙ্গ ভেঙে যায়।</li>
+      <li>index ও query-তে ভিন্ন embedding মডেল।</li>
+      <li>retrieval মান যাচাই না করে সরাসরি প্রোডাকশন — খারাপ retrieval = খারাপ উত্তর।</li>
+    </ul>
+  </div>
+  <div class="box interview">
+    <div class="bx-h"><span class="ic">🎤</span>Interview Questions</div>
+    <ol>
+      <li>RAG কখন fine-tuning-এর চেয়ে ভালো পছন্দ?</li>
+      <li>Hybrid search ও re-ranking কেন retrieval মান বাড়ায়?</li>
+      <li>RAG-এ hallucination পুরোপুরি দূর হয় কি? কেন/কেন নয়?</li>
+    </ol>
+  </div>
+  <div class="box summary">
+    <div class="bx-h"><span class="ic">📌</span>অধ্যায় ৭ — সারসংক্ষেপ</div>
+    <ul>
+      <li><strong>RAG</strong> = Retrieve (vector DB) → Augment (prompt) → Generate (LLM)।</li>
+      <li>re-train ছাড়াই নতুন/ব্যক্তিগত জ্ঞান যোগ করে, hallucination কমায়।</li>
+      <li>মূল উপাদান: chunking, embedding, vector DB, retriever, context injection।</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ========================================================= -->
+<!-- ==================== CHAPTER 8 =========================== -->
+<!-- ========================================================= -->
+<section class="chapter" id="ch8" data-screen-label="অধ্যায় ০৮">
+  <div class="ch-head">
+    <div class="ch-num">অধ্যায় ০৮ · Fine-Tuning</div>
+    <h2><span class="bn">Fine-Tuning — মডেলকে নিজের মতো গড়া</span></h2>
+    <p class="ch-lead">Full Fine-Tuning, LoRA, QLoRA ও PEFT — কোনটা কী, কখন কোনটা, এবং 🤗 PEFT দিয়ে একটি বাস্তব LoRA fine-tuning কোড।</p>
+  </div>
+
+  <h3><span class="bn">RAG নাকি Fine-tuning?</span></h3>
+  <div class="tbl-wrap">
+  <table>
+    <thead><tr><th>প্রয়োজন</th><th>সেরা পছন্দ</th></tr></thead>
+    <tbody>
+      <tr><td>নতুন/পরিবর্তনশীল <strong>তথ্য</strong> যোগ করা</td><td>RAG</td></tr>
+      <tr><td>নির্দিষ্ট <strong>আচরণ/টোন/ফরম্যাট</strong> শেখানো</td><td>Fine-tuning</td></tr>
+      <tr><td>নির্দিষ্ট <strong>ডোমেইন ভাষা</strong> (মেডিকেল/আইন)</td><td>Fine-tuning (+ RAG)</td></tr>
+      <tr><td>সূত্রসহ সর্বশেষ তথ্য</td><td>RAG</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3><span class="bn">চার ধরনের Fine-tuning</span></h3>
+  <div class="kgrid">
+    <div class="kcard"><div class="ki">F</div><h5>Full Fine-Tuning</h5><p>সব parameter আপডেট। সবচেয়ে শক্তিশালী, কিন্তু বিশাল GPU/VRAM ও স্টোরেজ লাগে।</p></div>
+    <div class="kcard"><div class="ki">P</div><h5>PEFT</h5><p>Parameter-Efficient Fine-Tuning — মূল মডেল জমাট রেখে শুধু অল্প নতুন parameter শেখা। ছাতা টার্ম।</p></div>
+    <div class="kcard"><div class="ki">Lo</div><h5>LoRA</h5><p>প্রতিটি weight matrix-এর পাশে ছোট low-rank adapter যোগ করে শুধু সেটাই শেখা — ১% parameter।</p></div>
+    <div class="kcard"><div class="ki">Q</div><h5>QLoRA</h5><p>মূল মডেল 4-bit-এ quantize করে তার উপর LoRA — একটি single consumer GPU-তেই 7B–13B fine-tune সম্ভব।</p></div>
+  </div>
+
+  <div class="mermaid-card">
+    <div class="mc-bar"><span class="ic"></span><span class="tt">LoRA — মূল weight জমাট, ছোট adapter শেখা</span></div>
+    <div class="mermaid">
+flowchart LR
+    X["input"] --> W["🔒 Pretrained W<br/><small>frozen, বিশাল</small>"]
+    X --> A["🟢 A<br/><small>r×d small</small>"] --> B["🟢 B<br/><small>d×r small</small>"]
+    W --> SUM["＋"]
+    B --> SUM
+    SUM --> Y["output"]
+    </div>
+  </div>
+  <p>মূল ধারণা: একটি বিশাল weight matrix <code>W</code>-এর পরিবর্তন <code>ΔW</code>-কে দুটি ছোট matrix-এর গুণফল <code>B·A</code> দিয়ে আনুমানিক করা যায় (low rank)। ফলে <strong>~০.১–১% parameter</strong> শিখেই কাজ চলে — মেমরি ও খরচ নাটকীয়ভাবে কমে।</p>
+
+  <h3><span class="bn">Python · 🤗 PEFT দিয়ে LoRA</span></h3>
+  <div class="code">
+    <div class="code-bar"><div class="dots"><i></i><i></i><i></i></div><span class="fname">lora_finetune.py</span><span class="lang">python</span><button class="copy-btn" data-label="Copy"><span class="t">Copy</span></button></div>
+<pre><code class="language-python"># pip install transformers peft datasets bitsandbytes trl
+from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
+from peft import LoraConfig, get_peft_model
+import torch
+
+model_id = "meta-llama/Llama-3.2-1B"
+
+# QLoRA: 4-bit quantization
+bnb = BitsAndBytesConfig(
+    load_in_4bit=True, bnb_4bit_quant_type="nf4",
+    bnb_4bit_compute_dtype=torch.bfloat16)
+
+tok = AutoTokenizer.from_pretrained(model_id)
+model = AutoModelForCausalLM.from_pretrained(
+    model_id, quantization_config=bnb, device_map="auto")
+
+# LoRA কনফিগ — শুধু attention projection-এ adapter
+lora = LoraConfig(
+    r=16, lora_alpha=32, lora_dropout=0.05,
+    target_modules=["q_proj", "k_proj", "v_proj", "o_proj"],
+    task_type="CAUSAL_LM")
+
+model = get_peft_model(model, lora)
+model.print_trainable_parameters()
+# trainable: ~0.7%  ← বাকিটা frozen, তাই অল্প VRAM-এই চলে
+</code></pre>
+  </div>
+  <div class="code">
+    <div class="code-bar"><div class="dots"><i></i><i></i><i></i></div><span class="fname">train_sft.py</span><span class="lang">python</span><button class="copy-btn" data-label="Copy"><span class="t">Copy</span></button></div>
+<pre><code class="language-python">from trl import SFTTrainer, SFTConfig
+from datasets import load_dataset
+
+# instruction-format ডেটা: {"text": "### প্রশ্ন:...\n### উত্তর:..."}
+ds = load_dataset("json", data_files="my_data.jsonl")["train"]
+
+cfg = SFTConfig(
+    output_dir="out", num_train_epochs=3,
+    per_device_train_batch_size=4, gradient_accumulation_steps=4,
+    learning_rate=2e-4, bf16=True, logging_steps=10)
+
+trainer = SFTTrainer(model=model, args=cfg, train_dataset=ds, processing_class=tok)
+trainer.train()
+model.save_pretrained("my-lora-adapter")    # মাত্র কয়েক MB!
+</code></pre>
+  </div>
+
+  <div class="box best">
+    <div class="bx-h"><span class="ic">✓</span>Best Practices</div>
+    <ul>
+      <li>আগে <strong>QLoRA</strong> দিয়ে শুরু করুন — সস্তা, দ্রুত, একটি GPU-তেই হয়।</li>
+      <li>ডেটার মান &gt; পরিমাণ; কয়েকশো ভালো উদাহরণও অনেক সময় যথেষ্ট।</li>
+      <li>adapter আলাদা সংরক্ষণ করুন — একই base model-এ বহু task-এর adapter সুইচ করা যায়।</li>
+    </ul>
+  </div>
+  <div class="box mistake">
+    <div class="bx-h"><span class="ic">✕</span>Common Mistakes</div>
+    <ul>
+      <li>খুব বেশি epoch → overfitting, মডেল ডেটা মুখস্থ করে।</li>
+      <li>training ও inference-এ ভিন্ন prompt template ব্যবহার।</li>
+      <li>learning rate খুব বড় → মডেল "ভুলে যায়" (catastrophic forgetting)।</li>
+    </ul>
+  </div>
+  <div class="box interview">
+    <div class="bx-h"><span class="ic">🎤</span>Interview Questions</div>
+    <ol>
+      <li>LoRA কীভাবে এত কম parameter দিয়ে কাজ করে (low-rank intuition)?</li>
+      <li>QLoRA-তে 4-bit quantization-ও মান কেন খুব একটা কমায় না?</li>
+      <li>Full fine-tuning কখন আবশ্যক হয়?</li>
+    </ol>
+  </div>
+  <div class="box summary">
+    <div class="bx-h"><span class="ic">📌</span>অধ্যায় ৮ — সারসংক্ষেপ</div>
+    <ul>
+      <li><strong>RAG</strong> তথ্যের জন্য, <strong>Fine-tuning</strong> আচরণ/টোন/ফরম্যাটের জন্য।</li>
+      <li><strong>LoRA/QLoRA</strong> ১% parameter শিখে সস্তায় fine-tune করে — আধুনিক ডিফল্ট।</li>
+      <li>adapter ছোট ও পুনর্ব্যবহারযোগ্য; এক base, বহু adapter।</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ========================================================= -->
+<!-- ==================== CHAPTER 9 =========================== -->
+<!-- ========================================================= -->
+<section class="chapter" id="ch9" data-screen-label="অধ্যায় ০৯">
+  <div class="ch-head">
+    <div class="ch-num">অধ্যায় ০৯ · Serving</div>
+    <h2><span class="bn">LLM Serving — মডেলকে API বানানো</span></h2>
+    <p class="ch-lead">মডেল ট্রেন হলো — এবার ব্যবহারকারীর কাছে পৌঁছাতে হবে। vLLM, Ollama, TGI, FastAPI ও Docker — কোনটা কীসের জন্য, এবং একটি serving আর্কিটেকচার।</p>
+  </div>
+
+  <h3><span class="bn">Serving টুলগুলো</span></h3>
+  <div class="tbl-wrap">
+  <table>
+    <thead><tr><th>টুল</th><th>কী</th><th>সেরা ব্যবহার</th></tr></thead>
+    <tbody>
+      <tr><td><strong>vLLM</strong></td><td>উচ্চ-throughput inference ইঞ্জিন (PagedAttention, continuous batching)</td><td>প্রোডাকশন, বহু concurrent user</td></tr>
+      <tr><td><strong>Ollama</strong></td><td>এক কমান্ডে লোকাল মডেল চালানো</td><td>ডেভেলপমেন্ট, লোকাল/অফলাইন, প্রোটোটাইপ</td></tr>
+      <tr><td><strong>TGI</strong><br>(Text Generation Inference)</td><td>Hugging Face-এর প্রোডাকশন serving সার্ভার</td><td>HF ইকোসিস্টেম, স্কেলেবল ডিপ্লয়</td></tr>
+      <tr><td><strong>FastAPI</strong></td><td>Python web framework — কাস্টম API layer</td><td>auth/logging/business logic মোড়ানো</td></tr>
+      <tr><td><strong>Docker</strong></td><td>কন্টেইনারাইজেশন</td><td>reproducible ডিপ্লয়, যেকোনো ক্লাউডে</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3><span class="bn">Serving Architecture</span></h3>
+  <div class="mermaid-card">
+    <div class="mc-bar"><span class="ic"></span><span class="tt">Inference serving stack</span></div>
+    <div class="mermaid">
+flowchart LR
+    C["📱 Client"] --> API["⚡ FastAPI<br/><small>auth, rate-limit, logging</small>"]
+    API --> Q["📨 Request Queue"]
+    Q --> VLLM["🚀 vLLM Engine<br/><small>continuous batching<br/>PagedAttention</small>"]
+    VLLM --> GPU["🎮 GPU(s)<br/><small>model weights</small>"]
+    VLLM --> API
+    API --> C
+    </div>
+  </div>
+
+  <h4>Ollama — লোকাল, এক কমান্ডে</h4>
+  <div class="code">
+    <div class="code-bar"><div class="dots"><i></i><i></i><i></i></div><span class="fname">ollama.sh</span><span class="lang">bash</span><button class="copy-btn" data-label="Copy"><span class="t">Copy</span></button></div>
+<pre><code class="language-bash"># ইনস্টলের পর — মডেল টানুন ও চালান
+ollama run llama3.2
+
+# OpenAI-সদৃশ API: http://localhost:11434
+curl http://localhost:11434/api/generate -d '{
+  "model": "llama3.2",
+  "prompt": "বাংলায় AI কী?",
+  "stream": false
+}'
+</code></pre>
+  </div>
+
+  <h4>vLLM — প্রোডাকশন থ্রুপুট</h4>
+  <div class="code">
+    <div class="code-bar"><div class="dots"><i></i><i></i><i></i></div><span class="fname">serve_vllm.sh</span><span class="lang">bash</span><button class="copy-btn" data-label="Copy"><span class="t">Copy</span></button></div>
+<pre><code class="language-bash"># pip install vllm — OpenAI-compatible সার্ভার চালু
+python -m vllm.entrypoints.openai.api_server \
+  --model meta-llama/Llama-3.2-3B-Instruct \
+  --dtype bfloat16 \
+  --max-model-len 8192 \
+  --gpu-memory-utilization 0.90 \
+  --port 8000
+</code></pre>
+  </div>
+
+  <h4>FastAPI দিয়ে কাস্টম wrapper</h4>
+  <div class="code">
+    <div class="code-bar"><div class="dots"><i></i><i></i><i></i></div><span class="fname">api.py</span><span class="lang">python</span><button class="copy-btn" data-label="Copy"><span class="t">Copy</span></button></div>
+<pre><code class="language-python"># pip install fastapi uvicorn openai
+from fastapi import FastAPI
+from pydantic import BaseModel
+from openai import OpenAI
+
+app = FastAPI()
+client = OpenAI(base_url="http://localhost:8000/v1", api_key="none")  # vLLM
+
+class Req(BaseModel):
+    message: str
+
+@app.post("/chat")
+def chat(req: Req):
+    resp = client.chat.completions.create(
+        model="meta-llama/Llama-3.2-3B-Instruct",
+        messages=[{"role": "user", "content": req.message}],
+        temperature=0.7, max_tokens=512)
+    return {"reply": resp.choices[0].message.content}
+# uvicorn api:app --host 0.0.0.0 --port 9000
+</code></pre>
+  </div>
+
+  <h4>Dockerfile</h4>
+  <div class="code">
+    <div class="code-bar"><div class="dots"><i></i><i></i><i></i></div><span class="fname">Dockerfile</span><span class="lang">dockerfile</span><button class="copy-btn" data-label="Copy"><span class="t">Copy</span></button></div>
+<pre><code class="language-dockerfile">FROM nvidia/cuda:12.4.0-runtime-ubuntu22.04
+RUN apt-get update &amp;&amp; apt-get install -y python3-pip
+RUN pip install vllm fastapi uvicorn openai
+COPY api.py /app/api.py
+WORKDIR /app
+EXPOSE 9000
+CMD ["uvicorn", "api:app", "--host", "0.0.0.0", "--port", "9000"]
+</code></pre>
+  </div>
+
+  <div class="box best">
+    <div class="bx-h"><span class="ic">✓</span>Best Practices</div>
+    <ul>
+      <li>throughput-এর জন্য <strong>vLLM/TGI</strong>; দ্রুত প্রোটোটাইপ ও লোকালে <strong>Ollama</strong>।</li>
+      <li><strong>streaming</strong> রেসপন্স দিন — ব্যবহারকারী token-by-token দেখে, latency কম মনে হয়।</li>
+      <li>quantization (AWQ/GPTQ/FP8) দিয়ে একই GPU-তে বেশি throughput পান।</li>
+      <li>GPU utilization, latency (p50/p99), token/s — সব monitor করুন।</li>
+    </ul>
+  </div>
+  <div class="box mistake">
+    <div class="bx-h"><span class="ic">✕</span>Common Mistakes</div>
+    <ul>
+      <li>প্রতি request-এ আলাদা মডেল লোড — মডেল একবারই মেমরিতে রাখুন।</li>
+      <li>batching ছাড়া serving → GPU বসে থাকে, খরচ বাড়ে।</li>
+      <li>timeout/rate-limit ছাড়া উন্মুক্ত API → একটি বড় request পুরো সার্ভার আটকে দেয়।</li>
+    </ul>
+  </div>
+  <div class="box summary">
+    <div class="bx-h"><span class="ic">📌</span>অধ্যায় ৯ — সারসংক্ষেপ</div>
+    <ul>
+      <li><strong>vLLM/TGI</strong> = প্রোডাকশন throughput; <strong>Ollama</strong> = লোকাল/dev; <strong>FastAPI</strong> = কাস্টম layer; <strong>Docker</strong> = portable deploy।</li>
+      <li>continuous batching + PagedAttention = বহু user-কে দক্ষভাবে সেবা।</li>
+      <li>streaming, quantization ও monitoring প্রোডাকশনে অপরিহার্য।</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ========================================================= -->
+<!-- ==================== CHAPTER 10 ========================== -->
+<!-- ========================================================= -->
+<section class="chapter" id="ch10" data-screen-label="অধ্যায় ১০">
+  <div class="ch-head">
+    <div class="ch-num">অধ্যায় ১০ · System Design</div>
+    <h2><span class="bn">সম্পূর্ণ Production Architecture</span></h2>
+    <p class="ch-lead">এবার সব একসাথে — একটি ChatGPT-সদৃশ enterprise সিস্টেম কীভাবে ডিজাইন করবেন। Frontend থেকে GPU পর্যন্ত প্রতিটি component, কীভাবে একে অপরের সাথে কথা বলে, এবং একটি request-এর পুরো যাত্রা।</p>
+  </div>
+
+  <h3><span class="bn">পূর্ণাঙ্গ Enterprise Diagram</span></h3>
+  <div class="mermaid-card">
+    <div class="mc-bar"><span class="ic"></span><span class="tt">ChatGPT-style Production Architecture</span></div>
+    <div class="mermaid">
+flowchart TB
+    U["👤 User / Browser"] --> FE["🖥️ Frontend<br/><small>React / Next.js</small>"]
+    FE --> GW["🚪 API Gateway<br/><small>routing, rate-limit, TLS</small>"]
+    GW --> AUTH["🔐 Auth Service<br/><small>JWT / OAuth</small>"]
+    GW --> BE["⚙️ Backend<br/><small>FastAPI / Node</small>"]
+    BE --> REDIS["⚡ Redis<br/><small>cache, session, queue</small>"]
+    BE --> PG[("🐘 PostgreSQL<br/><small>users, chat history</small>")]
+    BE --> VDB[("🗄️ Vector DB<br/><small>RAG knowledge</small>")]
+    BE --> LLM["🚀 LLM Server<br/><small>vLLM / TGI</small>"]
+    LLM --> GPU["🎮 GPU Cluster"]
+    BE --> MON["📊 Monitoring<br/><small>Prometheus, Grafana, logs</small>"]
+    LLM --> MON
+    </div>
+  </div>
+
+  <h3><span class="bn">প্রতিটি Component কী করে</span></h3>
+  <div class="tbl-wrap">
+  <table>
+    <thead><tr><th>Component</th><th>দায়িত্ব</th><th>সাধারণ টেক</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Frontend</strong></td><td>চ্যাট UI, streaming রেসপন্স দেখানো</td><td>React, Next.js, SSE/WebSocket</td></tr>
+      <tr><td><strong>API Gateway</strong></td><td>রাউটিং, TLS, global rate-limit, load balance</td><td>Nginx, Kong, AWS API GW</td></tr>
+      <tr><td><strong>Authentication</strong></td><td>লগইন, টোকেন, পারমিশন</td><td>JWT, OAuth2, Auth0</td></tr>
+      <tr><td><strong>Backend</strong></td><td>business logic, orchestration, RAG পাইপলাইন</td><td>FastAPI, Node.js</td></tr>
+      <tr><td><strong>Redis</strong></td><td>session cache, rate-limit counter, job queue</td><td>Redis, Celery</td></tr>
+      <tr><td><strong>PostgreSQL</strong></td><td>ব্যবহারকারী, চ্যাট ইতিহাস, মেটাডেটা</td><td>PostgreSQL</td></tr>
+      <tr><td><strong>Vector DB</strong></td><td>RAG-এর জন্য embedding সংরক্ষণ ও search</td><td>Qdrant, Pinecone, pgvector</td></tr>
+      <tr><td><strong>LLM Server</strong></td><td>আসল inference, batching</td><td>vLLM, TGI</td></tr>
+      <tr><td><strong>Monitoring</strong></td><td>metrics, latency, খরচ, alert</td><td>Prometheus, Grafana, OpenTelemetry</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3><span class="bn">একটি Request-এর পুরো যাত্রা</span></h3>
+  <div class="ascii">
+    <span class="cap">Request lifecycle</span>
+<pre>  1. User চ্যাটে মেসেজ লেখে        → Frontend
+  2. Gateway: TLS + rate-limit yYয  → API Gateway
+  3. টোকেন যাচাই                   → Auth
+  4. Backend session লোড করে       → Redis (cache) / PostgreSQL
+  5. প্রাসঙ্গিক তথ্য খোঁজে          → Vector DB (RAG)
+  6. prompt বানিয়ে inference call → LLM Server (vLLM) → GPU
+  7. token stream ফিরে আসে        → Backend → Frontend (SSE)
+  8. পুরো কথোপকথন সংরক্ষণ          → PostgreSQL
+  9. metrics লগ হয়                → Monitoring</pre>
+  </div>
+
+  <div class="box best">
+    <div class="bx-h"><span class="ic">✓</span>Best Practices</div>
+    <ul>
+      <li><strong>Stateless backend</strong> রাখুন; state থাকুক Redis/PostgreSQL-এ → অনুভূমিকভাবে scale করা সহজ।</li>
+      <li>সব LLM call <strong>async + queue</strong>-এর মাধ্যমে; spike সামলাতে autoscaling।</li>
+      <li>সাধারণ/পুনরাবৃত্ত query <strong>cache</strong> করুন (Redis) → খরচ ও latency কমে।</li>
+      <li>GPU ব্যয়বহুল — utilization, কিউ-দৈর্ঘ্য, খরচ/request নিবিড়ভাবে monitor করুন।</li>
+    </ul>
+  </div>
+  <div class="box mistake">
+    <div class="bx-h"><span class="ic">✕</span>Common Mistakes</div>
+    <ul>
+      <li>frontend থেকে সরাসরি LLM server কল — কোনো auth/rate-limit/logging থাকে না।</li>
+      <li>একটিমাত্র GPU instance, কোনো failover/redundancy নেই।</li>
+      <li>খরচ ট্র্যাক না করা — LLM bill দ্রুত নিয়ন্ত্রণের বাইরে যেতে পারে।</li>
+    </ul>
+  </div>
+  <div class="box interview">
+    <div class="bx-h"><span class="ic">🎤</span>System Design প্রশ্ন</div>
+    <ol>
+      <li>১০ লক্ষ ব্যবহারকারীর জন্য ChatGPT-সদৃশ সিস্টেম ডিজাইন করুন — bottleneck কোথায়?</li>
+      <li>LLM latency কমাতে কী কী কৌশল (caching, streaming, batching, quantization)?</li>
+      <li>মাল্টি-টেন্যান্ট পরিবেশে খরচ ও fair-usage কীভাবে নিয়ন্ত্রণ করবেন?</li>
+    </ol>
+  </div>
+  <div class="box summary">
+    <div class="bx-h"><span class="ic">📌</span>অধ্যায় ১০ — সারসংক্ষেপ</div>
+    <ul>
+      <li>Production = Frontend → Gateway → Auth → Backend → (Redis, PostgreSQL, Vector DB, LLM Server) → Monitoring।</li>
+      <li>Backend stateless রাখুন, LLM call queue-নির্ভর, response streaming।</li>
+      <li>caching, autoscaling ও খরচ-monitoring — স্কেল ও বাজেটের চাবিকাঠি।</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ========================================================= -->
+<!-- ==================== CHAPTER 11 ========================== -->
+<!-- ========================================================= -->
+<section class="chapter" id="ch11" data-screen-label="অধ্যায় ১১">
+  <div class="ch-head">
+    <div class="ch-num">অধ্যায় ১১ · Roadmap</div>
+    <h2><span class="bn">LLM Developer Roadmap</span></h2>
+    <p class="ch-lead">Beginner থেকে Expert — কোন ক্রমে কী শিখবেন। প্রতিটি ধাপ আগেরটির উপর দাঁড়িয়ে; তাড়াহুড়ো না করে ভিত্তি শক্ত করুন।</p>
+  </div>
+
+  <div class="mermaid-card">
+    <div class="mc-bar"><span class="ic"></span><span class="tt">Learning Path</span></div>
+    <div class="mermaid">
+flowchart LR
+    subgraph L1["🟢 Beginner"]
+      P["Python"] --> N["NumPy / Pandas"] --> ML["ML basics"]
+    end
+    subgraph L2["🔵 Intermediate"]
+      DL["Deep Learning"] --> PT["PyTorch"] --> TR["Transformers / 🤗"]
+    end
+    subgraph L3["🟣 Advanced"]
+      RAG2["RAG"] --> AG["Agents"] --> MCP["MCP / Tools"]
+    end
+    subgraph L4["🔴 Expert"]
+      FT["Fine-Tuning"] --> DT["Distributed Training"] --> PR["Production Systems"]
+    end
+    L1 --> L2 --> L3 --> L4
+    </div>
+  </div>
+
+  <div class="tbl-wrap">
+  <table>
+    <thead><tr><th>স্তর</th><th>যা শিখবেন</th><th>লক্ষ্য</th></tr></thead>
+    <tbody>
+      <tr><td><strong>🟢 Beginner</strong></td><td>Python, NumPy, Pandas, ML মৌলিক (regression, classification)</td><td>ডেটা নিয়ে কাজ ও মৌলিক মডেল বানানো</td></tr>
+      <tr><td><strong>🔵 Intermediate</strong></td><td>Deep Learning, PyTorch, 🤗 Transformers, embeddings</td><td>নিজে মডেল ট্রেন/ব্যবহার করা</td></tr>
+      <tr><td><strong>🟣 Advanced</strong></td><td>RAG, Agents, MCP, tool-calling, LangChain/LlamaIndex</td><td>বাস্তব LLM অ্যাপ বানানো</td></tr>
+      <tr><td><strong>🔴 Expert</strong></td><td>Fine-tuning (LoRA/QLoRA), distributed training, serving, system design</td><td>প্রোডাকশন-স্কেল সিস্টেম তৈরি</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="box note">
+    <div class="bx-h"><span class="ic">🧭</span>পরামর্শ</div>
+    <p>প্রতিটি স্তরে <strong>একটি করে প্রজেক্ট</strong> বানান — পড়ার চেয়ে নির্মাণে দশগুণ দ্রুত শেখা হয়। যেমন: Intermediate-এ অধ্যায় ৬-এর Mini-GPT, Advanced-এ অধ্যায় ৭-এর RAG বট, Expert-এ অধ্যায় ৮-এর fine-tune।</p>
+  </div>
+  <div class="box summary">
+    <div class="bx-h"><span class="ic">📌</span>অধ্যায় ১১ — সারসংক্ষেপ</div>
+    <ul>
+      <li>Python → ML → Deep Learning → PyTorch → Transformers → RAG/Agents → Fine-tuning → Distributed/Production।</li>
+      <li>প্রতিটি স্তরে হাতে-কলমে প্রজেক্ট = দ্রুততম শেখা।</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ========================================================= -->
+<!-- ==================== CHAPTER 12 ========================== -->
+<!-- ========================================================= -->
+<section class="chapter" id="ch12" data-screen-label="অধ্যায় ১২">
+  <div class="ch-head">
+    <div class="ch-num">অধ্যায় ১২ · Hardware &amp; Cost</div>
+    <h2><span class="bn">নিজের LLM তৈরিতে কী লাগবে?</span></h2>
+    <p class="ch-lead">GPU, VRAM, ডেটার আকার ও খরচ — বাস্তব সংখ্যা দিয়ে। ১B থেকে ৭০B পর্যন্ত মডেলে কী লাগে তার তুলনা।</p>
+  </div>
+
+  <h3><span class="bn">VRAM-এর মোটামুটি নিয়ম</span></h3>
+  <p>একটি সহজ আঙুলের হিসাব — শুধু <em>inference</em>-এর জন্য (precision অনুযায়ী):</p>
+  <div class="formula">
+    <div class="eq">VRAM ≈ Parameters × bytes/param × ১.২</div>
+    <div class="cap">FP16 = ২ bytes · 8-bit = ১ byte · 4-bit = ০.৫ byte (১.২ = overhead)</div>
+  </div>
+  <p><strong>Training</strong>-এ লাগে আরও অনেক বেশি (~৪×) — কারণ gradient, optimizer state (Adam-এ ২×) ও activation জমা রাখতে হয়।</p>
+
+  <h3><span class="bn">Parameters Comparison (1B → 70B)</span></h3>
+  <div class="tbl-wrap">
+  <table>
+    <thead><tr><th>মডেল</th><th>VRAM (FP16 inference)</th><th>VRAM (4-bit)</th><th>সাধারণ GPU</th><th>উপযোগ</th></tr></thead>
+    <tbody>
+      <tr><td><strong>1B</strong></td><td>~৩ GB</td><td>~১ GB</td><td>RTX 3060 / লো-এন্ড</td><td>edge, লোকাল, পরীক্ষা</td></tr>
+      <tr><td><strong>7B</strong></td><td>~১৪ GB</td><td>~৫ GB</td><td>RTX 4090 / A10</td><td>চ্যাটবট, RAG, fine-tune</td></tr>
+      <tr><td><strong>13B</strong></td><td>~২৬ GB</td><td>~৯ GB</td><td>A100 40GB / 2×4090</td><td>উন্নত reasoning</td></tr>
+      <tr><td><strong>70B</strong></td><td>~১৪০ GB</td><td>~৪০ GB</td><td>2–4× A100/H100 80GB</td><td>প্রোডাকশন, GPT-4-শ্রেণি</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p class="h3-sub">* আনুমানিক; context length, batch ও framework-ভেদে কম-বেশি হয়।</p>
+
+  <h3><span class="bn">Cost Estimation</span></h3>
+  <div class="tbl-wrap">
+  <table>
+    <thead><tr><th>কাজ</th><th>আনুমানিক খরচ</th><th>মন্তব্য</th></tr></thead>
+    <tbody>
+      <tr><td>7B QLoRA fine-tune</td><td>$৫–৫০</td><td>ক্লাউড GPU কয়েক ঘণ্টা ভাড়া</td></tr>
+      <tr><td>7B মডেল scratch থেকে pretrain</td><td>$৫০K–৫০০K+</td><td>বিশাল compute, সাধারণত করবেন না</td></tr>
+      <tr><td>70B pretrain</td><td>$১M–১০M+</td><td>শুধু বড় ল্যাব/কোম্পানি</td></tr>
+      <tr><td>Inference (ক্লাউড A100/ঘণ্টা)</td><td>$১–৪</td><td>spot instance-এ আরও সস্তা</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="box note">
+    <div class="bx-h"><span class="ic">💰</span>বাস্তব পরামর্শ</div>
+    <p>৯৯% ক্ষেত্রে আপনার <strong>scratch থেকে pretrain করার দরকার নেই</strong>। একটি ভালো open-source base model নিয়ে <strong>QLoRA fine-tune + RAG</strong> করলেই বেশিরভাগ বাস্তব সমস্যা সমাধান হয় — খরচ হাজার গুণ কম।</p>
+  </div>
+  <div class="box mistake">
+    <div class="bx-h"><span class="ic">✕</span>Common Mistakes</div>
+    <ul>
+      <li>training ও inference-এর VRAM এক ভেবে ফেলা (training ~৪× বেশি)।</li>
+      <li>context length-এর VRAM (KV-cache) হিসাবে না ধরা — লম্বা context প্রচুর মেমরি খায়।</li>
+      <li>প্রয়োজন ছাড়াই বিশাল মডেল বাছা — ছোট fine-tuned মডেল প্রায়ই যথেষ্ট ও সস্তা।</li>
+    </ul>
+  </div>
+  <div class="box summary">
+    <div class="bx-h"><span class="ic">📌</span>অধ্যায় ১২ — সারসংক্ষেপ</div>
+    <ul>
+      <li>VRAM ≈ params × bytes/param × ১.২ (inference); training ~৪×।</li>
+      <li>1B (~১–৩GB) → 70B (~৪০–১৪০GB)। quantization VRAM নাটকীয়ভাবে কমায়।</li>
+      <li>Pretrain বিলাসিতা; বেশিরভাগের জন্য <strong>fine-tune + RAG</strong>-ই সঠিক, সাশ্রয়ী পথ।</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ========================================================= -->
+<!-- ==================== CHAPTER 13 ========================== -->
+<!-- ========================================================= -->
+<section class="chapter" id="ch13" data-screen-label="অধ্যায় ১৩">
+  <div class="ch-head">
+    <div class="ch-num">অধ্যায় ১৩ · Ecosystem</div>
+    <h2><span class="bn">Open Source Ecosystem</span></h2>
+    <p class="ch-lead">২০২৬-এর open-source LLM জগৎ বিস্ফোরিত। কোন মডেল, কোন টুল, কোন ফ্রেমওয়ার্ক — কীসের জন্য, এক নজরে তুলনা।</p>
+  </div>
+
+  <h3><span class="bn">Open Models</span></h3>
+  <div class="tbl-wrap">
+  <table>
+    <thead><tr><th>মডেল</th><th>প্রতিষ্ঠান</th><th>শক্তি</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Llama</strong></td><td>Meta</td><td>সবচেয়ে বড় ইকোসিস্টেম, বহু আকার, প্রচুর fine-tune</td></tr>
+      <tr><td><strong>Mistral</strong></td><td>Mistral AI</td><td>আকারের তুলনায় দারুণ পারফরম্যান্স, MoE ভ্যারিয়েন্ট</td></tr>
+      <tr><td><strong>Qwen</strong></td><td>Alibaba</td><td>শক্তিশালী বহুভাষিক ও কোডিং, বহু আকার</td></tr>
+      <tr><td><strong>DeepSeek</strong></td><td>DeepSeek</td><td>চমৎকার reasoning ও কোড, খরচ-দক্ষ ট্রেনিং</td></tr>
+      <tr><td><strong>Gemma</strong></td><td>Google</td><td>হালকা, দক্ষ, on-device বান্ধব</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3><span class="bn">Tools &amp; Frameworks</span></h3>
+  <div class="tbl-wrap">
+  <table>
+    <thead><tr><th>টুল</th><th>কাজ</th><th>কখন ব্যবহার</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Hugging Face</strong></td><td>মডেল হাব + transformers/datasets/PEFT লাইব্রেরি</td><td>সবকিছুর কেন্দ্র — মডেল লোড, train, share</td></tr>
+      <tr><td><strong>vLLM</strong></td><td>হাই-throughput inference</td><td>প্রোডাকশন serving</td></tr>
+      <tr><td><strong>Ollama</strong></td><td>লোকাল মডেল রানার</td><td>dev, প্রোটোটাইপ, অফলাইন</td></tr>
+      <tr><td><strong>LangChain</strong></td><td>chain/agent orchestration framework</td><td>জটিল মাল্টি-স্টেপ LLM অ্যাপ</td></tr>
+      <tr><td><strong>LlamaIndex</strong></td><td>ডেটা framework, RAG-কেন্দ্রিক</td><td>ডকুমেন্ট ইনডেক্সিং ও retrieval</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="box note">
+    <div class="bx-h"><span class="ic">🧩</span>LangChain vs LlamaIndex</div>
+    <p><strong>LlamaIndex</strong> RAG/ডেটা-retrieval-এ বিশেষায়িত ও সহজ। <strong>LangChain</strong> বিস্তৃত — agent, tool, chain, memory সব। অনেক প্রজেক্টে দুটোই একসাথে ব্যবহৃত হয়; ছোট RAG-এ অবশ্য সরাসরি লাইব্রেরিই (অধ্যায় ৭-এর মতো) যথেষ্ট।</p>
+  </div>
+  <div class="box best">
+    <div class="bx-h"><span class="ic">✓</span>Best Practices</div>
+    <ul>
+      <li>ছোট open মডেল দিয়ে শুরু করুন; প্রয়োজন হলে বড়তে যান।</li>
+      <li>মডেলের <strong>license</strong> পড়ুন — সব "open" বাণিজ্যিক ব্যবহারে মুক্ত নয়।</li>
+      <li>framework-এর অতিরিক্ত abstraction এড়ান যদি সরল কোডেই কাজ হয়।</li>
+    </ul>
+  </div>
+  <div class="box summary">
+    <div class="bx-h"><span class="ic">📌</span>অধ্যায় ১৩ — সারসংক্ষেপ</div>
+    <ul>
+      <li>Open মডেল: <strong>Llama, Mistral, Qwen, DeepSeek, Gemma</strong>।</li>
+      <li>টুল: <strong>Hugging Face</strong> (কেন্দ্র), <strong>vLLM/Ollama</strong> (run), <strong>LangChain/LlamaIndex</strong> (orchestrate/RAG)।</li>
+      <li>ছোট থেকে শুরু, license যাচাই, প্রয়োজন-মাফিক abstraction।</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ========================================================= -->
+<!-- ==================== CHAPTER 14 ========================== -->
+<!-- ========================================================= -->
+<section class="chapter" id="ch14" data-screen-label="অধ্যায় ১৪">
+  <div class="ch-head">
+    <div class="ch-num">অধ্যায় ১৪ · Real Project</div>
+    <h2><span class="bn">Real-World Project — Production AI Assistant</span></h2>
+    <p class="ch-lead">পুরো গাইডের জ্ঞান এক প্রজেক্টে। একটি production-grade AI assistant-এর সম্পূর্ণ blueprint — feature, আর্কিটেকচার ও folder structure।</p>
+  </div>
+
+  <h3><span class="bn">Features</span></h3>
+  <div class="kgrid">
+    <div class="kcard"><div class="ki">💬</div><h5>Chat</h5><p>streaming রেসপন্সসহ মাল্টি-টার্ন কথোপকথন।</p></div>
+    <div class="kcard"><div class="ki">🧠</div><h5>Memory</h5><p>স্বল্প (session) ও দীর্ঘমেয়াদি (vector) স্মৃতি।</p></div>
+    <div class="kcard"><div class="ki">📚</div><h5>RAG</h5><p>ব্যবহারকারীর ডকুমেন্টে ভিত্তি করে উত্তর।</p></div>
+    <div class="kcard"><div class="ki">🎙️</div><h5>Voice</h5><p>STT (Whisper) + TTS দিয়ে কথা বলা।</p></div>
+    <div class="kcard"><div class="ki">🖼️</div><h5>Image Understanding</h5><p>multimodal মডেলে ছবি বিশ্লেষণ।</p></div>
+    <div class="kcard"><div class="ki">🤖</div><h5>Agents + Tools</h5><p>function-calling: search, calc, API কল।</p></div>
+    <div class="kcard"><div class="ki">🗄️</div><h5>Database</h5><p>ব্যবহারকারী, চ্যাট, doc মেটাডেটা সংরক্ষণ।</p></div>
+    <div class="kcard"><div class="ki">🔐</div><h5>Auth</h5><p>লগইন, পারমিশন, ব্যবহার-সীমা।</p></div>
+  </div>
+
+  <h3><span class="bn">Agent + Tools Flow</span></h3>
+  <div class="mermaid-card">
+    <div class="mc-bar"><span class="ic"></span><span class="tt">Agentic loop</span></div>
+    <div class="mermaid">
+flowchart TD
+    U["👤 User"] --> AG["🤖 Agent (LLM)"]
+    AG --> D{"টুল লাগবে?"}
+    D -->|না| ANS["💬 সরাসরি উত্তর"]
+    D -->|হ্যাঁ| T["🔧 Tool Call<br/><small>search / RAG / calc / API</small>"]
+    T --> OBS["📥 Observation"]
+    OBS --> AG
+    AG --> ANS
+    </div>
+  </div>
+
+  <h3><span class="bn">Folder Structure</span></h3>
+  <div class="code">
+    <div class="code-bar"><div class="dots"><i></i><i></i><i></i></div><span class="fname">project/</span><span class="lang">text</span><button class="copy-btn" data-label="Copy"><span class="t">Copy</span></button></div>
+<pre><code class="language-bash">ai-assistant/
+├── frontend/                 # React/Next.js চ্যাট UI
+│   ├── components/
+│   └── pages/
+├── backend/
+│   ├── main.py               # FastAPI entry
+│   ├── api/
+│   │   ├── chat.py           # /chat endpoint (streaming)
+│   │   ├── auth.py           # লগইন, JWT
+│   │   └── upload.py         # ডকুমেন্ট আপলোড → index
+│   ├── core/
+│   │   ├── llm.py            # vLLM/Ollama client
+│   │   ├── rag.py            # chunk, embed, retrieve
+│   │   ├── memory.py         # session + long-term memory
+│   │   ├── agents.py         # tool-calling orchestration
+│   │   └── tools/            # search.py, calculator.py, ...
+│   ├── voice/
+│   │   ├── stt.py            # Whisper
+│   │   └── tts.py
+│   └── db/
+│       ├── models.py         # SQLAlchemy
+│       └── vector_store.py   # Qdrant/FAISS wrapper
+├── infra/
+│   ├── Dockerfile
+│   ├── docker-compose.yml    # api + redis + postgres + qdrant
+│   └── monitoring/           # prometheus, grafana
+├── configs/
+│   └── settings.yaml
+├── tests/
+└── README.md</code></pre>
+  </div>
+
+  <h3><span class="bn">Tech Stack সারসংক্ষেপ</span></h3>
+  <div class="steps">
+    <span class="st"><b>UI:</b> Next.js</span><span class="ar">·</span>
+    <span class="st"><b>API:</b> FastAPI</span><span class="ar">·</span>
+    <span class="st"><b>LLM:</b> vLLM</span><span class="ar">·</span>
+    <span class="st"><b>RAG:</b> Qdrant</span><span class="ar">·</span>
+    <span class="st"><b>Cache:</b> Redis</span><span class="ar">·</span>
+    <span class="st"><b>DB:</b> PostgreSQL</span><span class="ar">·</span>
+    <span class="st"><b>Voice:</b> Whisper</span><span class="ar">·</span>
+    <span class="st"><b>Deploy:</b> Docker</span>
+  </div>
+
+  <div class="box best">
+    <div class="bx-h"><span class="ic">✓</span>Best Practices</div>
+    <ul>
+      <li><strong>MVP দিয়ে শুরু করুন</strong> — শুধু Chat + RAG; পরে voice/agent/image যোগ করুন।</li>
+      <li>প্রতিটি feature আলাদা module — পরিষ্কার সীমানা, সহজ টেস্ট।</li>
+      <li>config আলাদা ফাইলে; secret env variable-এ, কখনো কোডে নয়।</li>
+    </ul>
+  </div>
+  <div class="box summary">
+    <div class="bx-h"><span class="ic">📌</span>অধ্যায় ১৪ — সারসংক্ষেপ</div>
+    <ul>
+      <li>Assistant = Chat + Memory + RAG + Voice + Image + Agents/Tools + DB + Auth।</li>
+      <li>মডুলার folder structure: frontend / backend(core) / infra।</li>
+      <li>MVP (Chat+RAG) থেকে শুরু করে ধাপে ধাপে feature বাড়ান।</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ========================================================= -->
+<!-- ==================== CHAPTER 15 ========================== -->
+<!-- ========================================================= -->
+<section class="chapter" id="ch15" data-screen-label="অধ্যায় ১৫">
+  <div class="ch-head">
+    <div class="ch-num">অধ্যায় ১৫ · End-to-End</div>
+    <h2><span class="bn">সম্পূর্ণ End-to-End Workflow</span></h2>
+    <p class="ch-lead">শেষ অধ্যায়ে সবকিছু এক সুতোয় গাঁথি। একটি User prompt কীভাবে token-by-token Final Response-এ পরিণত হয় — প্রতিটি ধাপের পেছনের Python কোডসহ।</p>
+  </div>
+
+  <div class="mermaid-card">
+    <div class="mc-bar"><span class="ic"></span><span class="tt">Prompt → Final Response</span></div>
+    <div class="mermaid">
+flowchart TD
+    U["👤 User Prompt"] --> TK["✂️ Tokenizer"]
+    TK --> EM["🔢 Embeddings"]
+    EM --> TL["⚡ Transformer Layers"]
+    TL --> LG["📊 Logits<br/><small>vocab-এর উপর scores</small>"]
+    LG --> SP["🎲 Sampling<br/><small>temperature / top-p</small>"]
+    SP --> OT["🔡 Output Token"]
+    OT -->|loop until EOS| TL
+    OT --> FR["💬 Final Response"]
+    </div>
+  </div>
+
+  <h3><span class="bn">প্রতিটি ধাপ — কোডে</span></h3>
+
+  <h4>ধাপ ১–২ · Tokenize ও Embed</h4>
+  <div class="code">
+    <div class="code-bar"><div class="dots"><i></i><i></i><i></i></div><span class="fname">step1_2.py</span><span class="lang">python</span><button class="copy-btn" data-label="Copy"><span class="t">Copy</span></button></div>
+<pre><code class="language-python">from transformers import AutoTokenizer, AutoModelForCausalLM
+import torch
+
+name = "meta-llama/Llama-3.2-1B-Instruct"
+tok = AutoTokenizer.from_pretrained(name)
+model = AutoModelForCausalLM.from_pretrained(name, torch_dtype=torch.bfloat16, device_map="auto")
+
+prompt = "বাংলায় LLM মানে কী?"
+ids = tok(prompt, return_tensors="pt").to(model.device)   # ধাপ ১: tokens
+# ধাপ ২: embedding লুকআপ মডেলের ভেতরেই ঘটে (input_ids → vectors)
+print("token ids:", ids["input_ids"])
+</code></pre>
+  </div>
+
+  <h4>ধাপ ৩–৪ · Transformer Layers → Logits</h4>
+  <div class="code">
+    <div class="code-bar"><div class="dots"><i></i><i></i><i></i></div><span class="fname">step3_4.py</span><span class="lang">python</span><button class="copy-btn" data-label="Copy"><span class="t">Copy</span></button></div>
+<pre><code class="language-python">with torch.no_grad():
+    out = model(**ids)              # ধাপ ৩: সব transformer layer চলে
+logits = out.logits[:, -1, :]      # ধাপ ৪: শেষ অবস্থানের logits (vocab-scores)
+print("logits shape:", logits.shape)   # (1, vocab_size)
+</code></pre>
+  </div>
+
+  <h4>ধাপ ৫–৬ · Sampling → Output Token</h4>
+  <div class="code">
+    <div class="code-bar"><div class="dots"><i></i><i></i><i></i></div><span class="fname">step5_6.py</span><span class="lang">python</span><button class="copy-btn" data-label="Copy"><span class="t">Copy</span></button></div>
+<pre><code class="language-python">import torch.nn.functional as F
+
+def sample(logits, temperature=0.8, top_p=0.9):
+    logits = logits / temperature
+    probs = F.softmax(logits, dim=-1)
+    # top-p (nucleus): সম্ভাবনার শীর্ষ অংশ রাখো
+    sp, si = torch.sort(probs, descending=True)
+    cum = torch.cumsum(sp, dim=-1)
+    mask = cum - sp &gt; top_p
+    sp[mask] = 0
+    sp /= sp.sum(dim=-1, keepdim=True)
+    nxt = si.gather(-1, torch.multinomial(sp, 1))   # ধাপ ৬: output token
+    return nxt
+
+next_id = sample(logits)
+print("next token:", tok.decode(next_id[0]))
+</code></pre>
+  </div>
+  <div class="box note">
+    <div class="bx-h"><span class="ic">🎛️</span>Sampling প্যারামিটার</div>
+    <ul>
+      <li><strong>temperature</strong> — কম (০.২) = নিশ্চিত/একঘেয়ে; বেশি (১.০+) = সৃজনশীল/এলোমেলো।</li>
+      <li><strong>top-p / top-k</strong> — শুধু সম্ভাব্য token থেকে বাছাই করে আজেবাজে আউটপুট কমায়।</li>
+    </ul>
+  </div>
+
+  <h4>পুরো লুপ — সহজ পথ</h4>
+  <div class="code">
+    <div class="code-bar"><div class="dots"><i></i><i></i><i></i></div><span class="fname">step7_full.py</span><span class="lang">python</span><button class="copy-btn" data-label="Copy"><span class="t">Copy</span></button></div>
+<pre><code class="language-python"># বাস্তবে generate() পুরো autoregressive লুপ চালায়
+messages = [{"role": "user", "content": "বাংলায় LLM মানে কী?"}]
+inputs = tok.apply_chat_template(messages, return_tensors="pt",
+                                 add_generation_prompt=True).to(model.device)
+
+out = model.generate(inputs, max_new_tokens=256, temperature=0.8,
+                     top_p=0.9, do_sample=True)        # ধাপ ৭: লুপ → EOS
+response = tok.decode(out[0][inputs.shape[1]:], skip_special_tokens=True)
+print(response)        # 💬 Final Response
+</code></pre>
+  </div>
+
+  <div class="ascii">
+    <span class="cap">পুরো যাত্রা — এক ফ্রেমে</span>
+<pre>  "LLM মানে কী?"
+       │ tokenize → [128000, 4086, ...]
+       │ embed    → vectors
+       ▼
+  ┌─────────────────────────────┐
+  │  Transformer layers × N     │◄─┐
+  └──────────────┬──────────────┘  │ autoregressive
+       logits ───┤                 │  (প্রতি token পুনরায়
+       sampling ─┤                 │   feed back)
+       token ────┴─────────────────┘
+       │ (EOS এলে থামে)
+       ▼
+  "LLM মানে Large Language Model — একটি বিশাল ভাষা মডেল..."</pre>
+  </div>
+
+  <div class="box best">
+    <div class="bx-h"><span class="ic">✓</span>Best Practices</div>
+    <ul>
+      <li>চ্যাট মডেলে সবসময় <code>apply_chat_template</code> ব্যবহার করুন — সঠিক special token বসে।</li>
+      <li>deterministic আউটপুট চাইলে <code>do_sample=False</code> (greedy) বা temperature≈০।</li>
+      <li>লম্বা generation-এ <strong>KV-cache</strong> চালু রাখুন (ডিফল্ট) — নাটকীয় গতি।</li>
+    </ul>
+  </div>
+  <div class="box interview">
+    <div class="bx-h"><span class="ic">🎤</span>Interview Questions</div>
+    <ol>
+      <li>logits থেকে token পর্যন্ত পথে temperature ও top-p কী ভূমিকা রাখে?</li>
+      <li>Greedy vs sampling decoding — কখন কোনটা?</li>
+      <li>KV-cache কীভাবে autoregressive generation দ্রুত করে?</li>
+    </ol>
+  </div>
+  <div class="box summary">
+    <div class="bx-h"><span class="ic">📌</span>অধ্যায় ১৫ — সারসংক্ষেপ</div>
+    <ul>
+      <li>Prompt → Tokenize → Embed → Transformer → Logits → Sampling → Token → (loop) → Response।</li>
+      <li>Sampling (temperature/top-p) আউটপুটের সৃজনশীলতা ও নির্ভরযোগ্যতা নিয়ন্ত্রণ করে।</li>
+      <li>পুরো গাইডের প্রতিটি অধ্যায় এই একটি প্রবাহেই মিলিত হয়।</li>
+    </ul>
+  </div>
+</section>
+
+      <!-- CHAPTERS_INSERT -->
+    </div>
+
+    <!-- ===== CLOSING ===== -->
+    <section class="closing">
+      <div class="mark">✓</div>
+      <h2>গাইড সম্পূর্ণ</h2>
+      <p>আপনি এখন LLM-এর ভেতরের গণিত থেকে শুরু করে একটি সম্পূর্ণ Production সিস্টেম পর্যন্ত পুরো যাত্রাটা জানেন। এখন নিজে হাতে কোড লিখে, একটা ছোট প্রজেক্ট দিয়ে শুরু করুন — শেখার সবচেয়ে ভালো উপায় হলো নির্মাণ।</p>
+    </section>
+  </main>
+</div>
+
+<!-- ============ SCRIPTS ============ -->
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<script>
+// ---- Mermaid dark theme ----
+mermaid.initialize({
+  startOnLoad:true,
+  theme:'base',
+  securityLevel:'loose',
+  fontFamily:"'JetBrains Mono','Hind Siliguri',monospace",
+  themeVariables:{
+    background:'#121826',
+    primaryColor:'#161d2c',
+    primaryBorderColor:'#4c9bff',
+    primaryTextColor:'#e7eefb',
+    secondaryColor:'#1a2840',
+    secondaryBorderColor:'#9b8cff',
+    secondaryTextColor:'#dfe7f5',
+    tertiaryColor:'#13202f',
+    tertiaryBorderColor:'#46c08a',
+    tertiaryTextColor:'#dfe7f5',
+    lineColor:'#647a96',
+    textColor:'#c4cfde',
+    nodeBorder:'#4c9bff',
+    clusterBkg:'#0e131d',
+    clusterBorder:'#2a3650',
+    edgeLabelBackground:'#0e131d',
+    fontSize:'15px'
+  }
+});
+
+// ---- Highlight.js ----
+window.addEventListener('DOMContentLoaded',()=>{
+  document.querySelectorAll('pre code').forEach(el=>{ try{hljs.highlightElement(el);}catch(e){} });
+
+  // ---- Copy buttons ----
+  document.querySelectorAll('.code').forEach(block=>{
+    const btn=block.querySelector('.copy-btn');
+    const code=block.querySelector('pre code');
+    if(!btn||!code) return;
+    btn.addEventListener('click',()=>{
+      navigator.clipboard.writeText(code.innerText).then(()=>{
+        const orig=btn.dataset.label||'Copy';
+        btn.classList.add('ok');btn.querySelector('.t').textContent='Copied!';
+        setTimeout(()=>{btn.classList.remove('ok');btn.querySelector('.t').textContent=orig;},1400);
+      });
+    });
+  });
+});
+
+// ---- Reading progress + active TOC ----
+const prog=document.getElementById('progress');
+const tocLinks=[...document.querySelectorAll('#toc a')];
+const sections=tocLinks.map(a=>document.querySelector(a.getAttribute('href'))).filter(Boolean);
+function onScroll(){
+  const h=document.documentElement;
+  const sc=h.scrollTop, max=h.scrollHeight-h.clientHeight;
+  prog.style.width=(max>0?(sc/max*100):0)+'%';
+  let cur=sections[0];
+  for(const s of sections){ if(s.getBoundingClientRect().top<=160) cur=s; }
+  tocLinks.forEach(a=>a.classList.toggle('active', a.getAttribute('href')==='#'+(cur&&cur.id)));
+}
+document.addEventListener('scroll',onScroll,{passive:true});
+window.addEventListener('load',onScroll);
+</script>
+</body>
+</html>
